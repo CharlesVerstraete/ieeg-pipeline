@@ -15,8 +15,11 @@ import os
 # Set the path to directories
 ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
 ORIGINAL_DATA_DIR = os.path.join(ORIGINAL_DIR, "subject_collection")
+
 FIRST_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis/data")
 electrode_first_extensions = ["raw", "anatomical/implantation/"]
+
+SECOND_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis_v2/data")
 
 ROOT_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/analysis_v3/"
 DATA_DIR = os.path.join(ROOT_DIR, "data")

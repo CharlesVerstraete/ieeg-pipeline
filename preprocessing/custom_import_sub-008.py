@@ -104,6 +104,7 @@ events = np.stack((idx_events, np.zeros(len(idx_events)), trigger_values), axis 
 # Add the events to the raw object and save it
 raw, events = create_mne(signal, channel_signal, electrodes_types, sfreq, events)
 
+
 save_path = os.path.join(DATA_DIR, f'sub-{subject:03d}',  'raw', 'ieeg', f'sub-{subject:03d}_run-{idx:02d}-raw.fif')
 raw.save(save_path, overwrite=True)
 

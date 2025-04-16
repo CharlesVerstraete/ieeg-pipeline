@@ -140,14 +140,17 @@ def events_fromsignal(segment):
     label = segment._events[0].labels.astype(int)
     return np.vstack(((time*sfreq).magnitude, np.zeros(len(time)), label)).astype(int).T
 
-def import_trc_file(ieeg_file, subject):
+def import_trc_file(ieeg_file, subject = None):
     """
     Import the ieeg file and return the signal, channel names and electrodes types
     """
     segment = extract_trc(ieeg_file)
     segment = check_units(segment)
     segment = format_channelname(segment)
-    channel_anat = get_anat_channelnames(subject)
+    if subject is not None:
+        channel_anat = get_anat_channelnames(subject)
+    else:
+        channel_anat = []
     channel_signal = []
     for (i, asignal) in enumerate(segment.analogsignals):
         channel_signal = np.append(channel_signal, asignal.array_annotations["channel_names"])
@@ -232,6 +235,5 @@ def find_consecutive(signal):
         else:
             i += 1
     return consecutive
-
 
 
