@@ -111,7 +111,7 @@ def get_behav_events(df):
 
     return np.hstack(events), np.hstack(trial_count)
 
-def needleman_wunsch(seq1, seq2, match_score=1, mismatch_score=-3, gap_open_seq1=-50, gap_extend_seq1=-100, gap_open_seq2=-5, gap_extend_seq2=-10, band_width=1000):
+def needleman_wunsch(seq1, seq2, match_score=10, mismatch_score=-3, gap_open_seq1=-100, gap_extend_seq1=-40, gap_open_seq2=-100, gap_extend_seq2=-1, band_width=2000):
     m, n = len(seq1), len(seq2)
     score_matrix = np.zeros((m + 1, n + 1), dtype=int)
     
@@ -192,7 +192,42 @@ def format_events(events):
     formated[formated > 9] = 0
     return ''.join(map(str, formated))
 
-def check_alignement(events_df, signal_df, log_df, aligned_log_eeg, aligned_eeg_behav, aligned_behav_eeg) :
+
+def get_triplet_eventsdf(subject): 
+    """
+    
+    """
+    signal_events_df = get_complete_events(subject)
+    clean_signal_events = clean_eventdf(signal_events_df)
+
+    events_file = get_fileslist(os.path.join(ORIGINAL_DATA_DIR, str(subject), 'EEG'), '.csv')[0]
+    log_events_df = pd.read_csv(events_file)
+    clean_log_events = clean_eventdf(log_events_df)
+
+    behav_files = get_fileslist(os.path.join(SECOND_ANALYSIS__DATA_DIR, f"sub-{subject:03}", "raw", "beh"), "stratinf_beh.tsv")
+    beh_df = pd.read_csv(behav_files[0], sep="\t")
+    beh_events, trial_count = get_behav_events(beh_df)
+    beh_events_df = pd.DataFrame({"value" : beh_events, "trial_count" : trial_count})
+    beh_events_df["cumul"] = np.arange(len(beh_events_df))
+    beh_events_df["format_events"] = list(format_events(beh_events))
+
+    return clean_signal_events, clean_log_events, beh_events_df
+
+def create_alignseq(log_events, signal_events, beh_events): 
+    """
+    
+    """
+    format_log_events = format_events(log_events["value"].values)
+    format_eeg_events = format_events(signal_events["value"].values)
+    format_behav_events = format_events(beh_events["value"].values)
+
+    _, aligned_log_behav = needleman_wunsch(format_behav_events, format_log_events)
+    aligned_behav_eeg, aligned_eeg_behav = needleman_wunsch(format_behav_events, format_eeg_events)
+
+    return aligned_behav_eeg, aligned_log_behav, aligned_eeg_behav
+
+
+def check_alignement(events_df, signal_df, log_df) :
     """
     Check the alignment of the events dataframe with the signal and log dataframe
     """
@@ -200,10 +235,10 @@ def check_alignement(events_df, signal_df, log_df, aligned_log_eeg, aligned_eeg_
     for idx, row in events_df.iterrows() :
         if "-" not in row.values : 
             events_df.loc[idx, "time_signal"] = signal_df["time"].values[itr]
-            events_df.loc[idx, "time_log"] = log_df["time"].values[itr]
+            events_df.loc[idx, "time_log"] = log_df["time"].values[idx]
             events_df.loc[idx, "sample"] = signal_df["sample"].values[itr]
             events_df.loc[idx, "run"] = signal_df["run"].values[itr]
-            events_df.loc[idx, "value_log"] = log_df["value"].values[itr]
+            events_df.loc[idx, "value_log"] = log_df["value"].values[idx]
             events_df.loc[idx, "value_eeg"] = signal_df["value"].values[itr]
             itr += 1
     return events_df
@@ -227,3 +262,4 @@ def make_eventsdf(beh_events_df, aligned_log_behav, aligned_eeg_behav) :
         "run" : np.nan
     })
     return events_df
+

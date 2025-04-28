@@ -10,7 +10,10 @@ Configuration file for global variables and constants
 
 # Import libraries
 import os
-
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Set the path to directories
 ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
@@ -81,6 +84,14 @@ BAD_CHANNELS = {
     30 : [],
 }
 
+
+
+
+palette = sns.color_palette("Dark2")
+stable_color = palette[3]
+partial_color = palette[2]
+complete_color = palette[0]
+palette_dict = {0: partial_color, 1: stable_color, -1: complete_color}
 
 
 

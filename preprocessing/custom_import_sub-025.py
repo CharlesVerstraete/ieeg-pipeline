@@ -11,8 +11,9 @@ Custom import for subject 25, edf file from deltamed system (Bordeaux)
 # Import libraries
 from preprocessing.config import *
 from preprocessing.utils.data_helper import *
+from preprocessing.utils.align_helper import *
 
-new_action_trigger = {7: 71, 9: 73, 15: 79, 186: 250, 187: 251, 188: 252, 37: 101, 136: 200, 38: 102, 138: 202, 146: 210, 148: 212, 36: 100, 189: 253, 137: 201, 46: 110, 147: 211, 48: 112, 47: 111, 176: 240, 23: 151}
+new_action_trigger = {7: 71, 9: 73, 15: 79, 186: 250, 187: 251, 188: 252, 37: 101, 136: 200, 38: 102, 138: 202, 146: 210, 148: 212, 36: 100, 189: 253, 137: 201, 46: 110, 147: 211, 48: 112, 47: 111, 176: 240}
 
 subject = 25
 create_subject_folder(subject)
@@ -46,8 +47,48 @@ for (i, ieeg_file) in enumerate(ieeg_files):
     raw.save(save_path, overwrite=True)
 
 
+############################################################################################################################################################################
+############################################################################################################################################################################
+# Custom events alignement
+############################################################################################################################################################################
+############################################################################################################################################################################
 
+signal_events_df = get_complete_events(subject)
+signal_events_df = signal_events_df[3:-1].reset_index(drop=True)
+clean_signal_events = clean_eventdf(signal_events_df)
 
+events_file = get_fileslist(os.path.join(ORIGINAL_DATA_DIR, str(subject), 'EEG'), '.csv')[0]
+log_events_df = pd.read_csv(events_file)
+clean_log_events = clean_eventdf(log_events_df)
+
+behav_files = get_fileslist(os.path.join(SECOND_ANALYSIS__DATA_DIR, f"sub-{subject:03}", "raw", "beh"), "stratinf_beh.tsv")
+beh_df = pd.read_csv(behav_files[0], sep="\t")
+beh_events, trial_count = get_behav_events(beh_df)
+beh_events_df = pd.DataFrame({"value" : beh_events, "trial_count" : trial_count})
+beh_events_df["cumul"] = np.arange(len(beh_events_df))
+beh_events_df["format_events"] = list(format_events(beh_events))
+
+beh_events, trial_count = get_behav_events(beh_df)
+beh_events_df = pd.DataFrame({"value" : beh_events, "trial_count" : trial_count})
+beh_events_df["cumul"] = np.arange(len(beh_events_df))
+beh_events_df["format_events"] = list(format_events(beh_events))
+
+format_log_events = format_events(clean_log_events["value"].values)
+format_eeg_events = format_events(clean_signal_events["value"].values)
+format_behav_events = "".join(beh_events_df["format_events"].values)
+
+tmp_be_1, tmp_eb_1 = needleman_wunsch(format_behav_events[:2491], format_eeg_events[:2491])
+tmp_be_2, tmp_eb_2 = needleman_wunsch(format_behav_events[2491:], format_eeg_events[2491:])
+_, aligned_log_behav = needleman_wunsch(format_behav_events, format_log_events)
+
+aligned_behav_eeg = tmp_be_1 + tmp_be_2
+aligned_eeg_behav = tmp_eb_1 + tmp_eb_2
+
+events_df = make_eventsdf(beh_events_df, aligned_log_behav, aligned_eeg_behav)
+events_df = check_alignement(events_df, clean_signal_events, clean_log_events)
+
+save_path = os.path.join(DATA_DIR, f'sub-{subject:03d}', 'raw', 'ieeg', f'sub-{subject:03d}_events.tsv')
+events_df.to_csv(save_path, sep="\t", index=False)
 
 
 
