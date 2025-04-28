@@ -27,7 +27,7 @@ SECOND_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis_v2/data")
 ROOT_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/analysis_v3/"
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 PREPROCESSING_DIR = os.path.join(ROOT_DIR, "preprocessing")
-
+FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
 
 # Set subjects and sessions
 N_SUBJECTS = 25
