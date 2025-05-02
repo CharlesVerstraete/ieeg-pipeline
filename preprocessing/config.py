@@ -29,9 +29,11 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 PREPROCESSING_DIR = os.path.join(ROOT_DIR, "preprocessing")
 FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
 
+ATLAS_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/analysis/data/anatomical_atlas"
+
 # Set subjects and sessions
-N_SUBJECTS = 25
-BAD_SUBJECTS = [1, 6, 7, 8, 10, 11, 12, 13, 15, 17, 21, 22, 23, 24, 25]
+N_SUBJECTS = 28
+BAD_SUBJECTS = [1, 6, 7, 10, 11, 13, 15, 17, 21, 22, 24, 26, 27]
 SUBJECTS = [i for i in range(1, N_SUBJECTS + 1) if i not in BAD_SUBJECTS]
 SUBJECTS_NAME = [f'sub-{i:03d}' for i in range(1, N_SUBJECTS + 1) if i not in BAD_SUBJECTS]
 
@@ -85,7 +87,25 @@ BAD_CHANNELS = {
 }
 
 
-
+area_dict = {
+    'Motor' : 1,
+    'Somatosensory' : 2,
+    'SMA' : 3,
+    'preSMA' : 4,
+    'Premotor' : 5,
+    'Posterior_Insula' : 6,
+    'Anterior_Insula' : 7,
+    'FOP' : 8,
+    'VLPFC' : 9, 
+    'DLPFC_POST' : 10,
+    'mid-DLPFC' : 11,
+    'DMPFC' : 12,
+    'MCCa' : 13,
+    'ACC' : 14, 
+    'VMPFC' : 15,
+    'OFC' : 16,
+    'Frontopolar' : 17
+}
 
 palette = sns.color_palette("Dark2")
 stable_color = palette[3]

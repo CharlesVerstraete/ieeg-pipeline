@@ -41,17 +41,20 @@ def get_bordeaux_df(path):
     df = pd.read_csv(path, sep="\t")
     df.drop(index=len(df)-1, inplace=True)
     df["is_inmask"] = df["matter"] == "grey"
-    return df.reset_index(drop=True)
+    df.rename(columns={"Electrode": "electrode"}, inplace=True)
+    df["name"] = [f"{elec}{n}" for elec, n in df[["electrode", "Contact"]].values]
+    df.reset_index(drop=True)
+    return df[["electrode", "name", "x", "y", "z", "is_inmask"]] 
 
 
-def format_grenoble_df(df, atlas_ref):
+def format_grenoble_df(df):
     """
     Format the Grenoble dataframe
     """
     new_df = pd.DataFrame()
-    new_df["x"] = [x.replace("[", "").replace("]", "").split(",")[0] for x in df["MNI"].values]
-    new_df["y"] = [x.replace("[", "").replace("]", "").split(",")[1] for x in df["MNI"].values]
-    new_df["z"] = [x.replace("[", "").replace("]", "").split(",")[2] for x in df["MNI"].values]
+    coords = df["MNI"].str.strip('[]').str.split(',', expand=True)
+    for i, col in enumerate(["x", "y", "z"]):
+        new_df[col] = coords[i].astype(float)
     new_df["name"] = df["contact"]
     new_df["electrode"] = [match.group(1) for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in new_df['name'].values]]
     new_df["is_inmask"] = df["GreyWhite"] == "GreyMatter"
@@ -61,8 +64,13 @@ def coordinate_transformation(coords, affine):
     """
     Transform coordinates to another space using the affine transformation matrix
     """
-    coords = np.hstack((coords, np.ones((len(coords), 1))))
-    return np.dot(coords, np.linalg.inv(affine).T)[:, :3]
+    coords_array = np.asarray(coords).astype(float)
+    if coords_array.ndim == 1:
+        out_coords = np.dot(np.append(coords_array, 1), np.linalg.inv(affine).T)[:3]
+    else:
+        homogeneous_coords = np.hstack((coords_array, np.ones((len(coords_array), 1))))
+        out_coords = np.dot(homogeneous_coords, np.linalg.inv(affine).T)[:, :3]
+    return out_coords
 
 def format_atlas_data(atlas_data) :
     """
@@ -101,7 +109,7 @@ def get_atlas_data(atlas_path):
     """
     atlas_ref_path = os.path.join(atlas_path, "HCP-MMP1_labels.csv")
     atlas_ref = pd.read_csv(atlas_ref_path, delimiter=';')
-    atlas_img_path = os.path.join(atlas_path, "HCP-MMP1.nii")
+    atlas_img_path = os.path.join(atlas_path, "HCP-MMP1_resampled.nii")
     atlas_img = nib.load(atlas_img_path)
     atlas_data = atlas_img.get_fdata()
     return atlas_ref, atlas_img, atlas_data
@@ -127,3 +135,5 @@ def create_customcmap(vmin, vmax, center, cmap_orig):
         1 - 0.5 * ((1 - x) / (1 - center_norm)) ** 2
     )
     return ListedColormap(base_cmap(idx))
+
+
