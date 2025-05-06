@@ -107,10 +107,9 @@ def get_anat_channelnames(subject) :
     """
     Get the channel names from the anat file
     """
-    electrode_path = os.path.join(FIRST_ANALYSIS__DATA_DIR, electrode_first_extensions[0], f'subject_{subject:02d}', electrode_first_extensions[1])
-    electrodes_files = get_fileslist(electrode_path, ".txt")
-    with open(electrodes_files[0], "r") as ename_file:
-        channel_names = [line.strip().lower() for line in ename_file]
+    electrode_path = os.path.join(DATA_DIR, f'sub-{subject:03}', "raw", "anat", f"sub-{subject:03}_electrodes-unipolar.csv")
+    df = pd.read_csv(electrode_path)
+    channel_names = df["name"].values
     return channel_names
 
 def find_electrodes_types(channel_signal, channel_anat, patterns = ["ecg", "eog", "emg"]):

@@ -73,6 +73,8 @@ for subject, gre_path in zip([3, 23, 28], gre_path_list) :
     print(subject)
     anat_object = Anatomy(ATLAS_DIR, subject)
     anat_object.load_electrodes_from_grenoble(gre_path)
+    save_path = os.path.join(DATA_DIR, f'sub-{subject:03d}', 'raw', 'anat')
     anat_object.save_electrodes(save_path)
+    anat_object.save_electrodes(save_path, df_type="bipolar")
 
 

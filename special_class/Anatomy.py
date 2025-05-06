@@ -189,10 +189,11 @@ class Anatomy:
         df = get_grenoble_df(file)
         self.electrode_df = format_grenoble_df(df)
         self.electrode_df["subject"] = self.subject_num
-        self.electrode_df = self.get_electrodes_parcels(self.electrode_df)
         self.make_bipolar_df()
+        self.electrode_df = self.get_electrodes_parcels(self.electrode_df)
         self.bipolar_df = self.get_electrodes_parcels(self.bipolar_df)
         self.add_bipolar_contacts_info()
+        self.bipolar_df["is_inmask"] = (self.bipolar_df["cathode_is_inmask"] | self.bipolar_df["anode_is_inmask"])
     
     def load_electrodes_from_bordeaux(self, file):
         """
@@ -200,10 +201,11 @@ class Anatomy:
         """
         self.electrode_df = get_bordeaux_df(file)
         self.electrode_df["subject"] = self.subject_num
-        self.electrode_df = self.get_electrodes_parcels(self.electrode_df)
         self.make_bipolar_df()
+        self.electrode_df = self.get_electrodes_parcels(self.electrode_df)
         self.bipolar_df = self.get_electrodes_parcels(self.bipolar_df)
         self.add_bipolar_contacts_info()
+        self.bipolar_df["is_inmask"] = (self.bipolar_df["cathode_is_inmask"] | self.bipolar_df["anode_is_inmask"])
 
     def save_electrodes(self, path, df_type = 'unipolar'):
         """

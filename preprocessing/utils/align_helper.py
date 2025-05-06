@@ -221,10 +221,10 @@ def create_alignseq(log_events, signal_events, beh_events):
     format_eeg_events = format_events(signal_events["value"].values)
     format_behav_events = format_events(beh_events["value"].values)
 
-    _, aligned_log_behav = needleman_wunsch(format_behav_events, format_log_events)
+    aligned_behav_log, _ = needleman_wunsch(format_behav_events, format_log_events)
     aligned_behav_eeg, aligned_eeg_behav = needleman_wunsch(format_behav_events, format_eeg_events)
 
-    return aligned_behav_eeg, aligned_log_behav, aligned_eeg_behav
+    return aligned_behav_eeg, aligned_behav_log, aligned_eeg_behav
 
 
 def check_alignement(events_df, signal_df, log_df) :
