@@ -47,8 +47,7 @@ def create_subject_folder(subject):
     preprocessed_data_folder = os.path.join(subject_folder, 'preprocessed')
     if not os.path.exists(preprocessed_data_folder):
         os.makedirs(preprocessed_data_folder)
-        os.makedirs(os.path.join(preprocessed_data_folder, 'aligned'))
-        os.makedirs(os.path.join(preprocessed_data_folder, 'filtered'))
+        os.makedirs(os.path.join(preprocessed_data_folder, 'cleaned'))
         os.makedirs(os.path.join(preprocessed_data_folder, 'epochs'))
         os.makedirs(os.path.join(preprocessed_data_folder, 'timefreq'))
 
@@ -146,13 +145,11 @@ def import_trc_file(ieeg_file, subject = None):
     segment = extract_trc(ieeg_file)
     segment = check_units(segment)
     segment = format_channelname(segment)
-    if subject is not None:
-        channel_anat = get_anat_channelnames(subject)
-    else:
-        channel_anat = []
+    channel_anat = get_anat_channelnames(subject)
     channel_signal = []
     for (i, asignal) in enumerate(segment.analogsignals):
         channel_signal = np.append(channel_signal, asignal.array_annotations["channel_names"])
+    channel_signal = np.array([ch.lower() for ch in channel_signal])
     electrodes_types = find_electrodes_types(channel_signal, channel_anat)
     signal = np.concatenate([asignal.magnitude for asignal in segment.analogsignals], axis = 1)
     events = events_fromsignal(segment)
@@ -215,24 +212,4 @@ def collect_raw_data(subject):
     #         raw.save(save_path, overwrite=True)
     #         print(" "*10 + f"Saving {ieeg_file.split('/')[-1]} as sub-{subject:03d}_run-{idx:02d}-raw.fif")
     #         del raw, events
-
-        
-def find_consecutive(signal):
-    """
-    Find all consecutive non-zero values in a binary signal
-    """
-    signal = np.array(signal)
-    consecutive = []
-    i = 0
-    while i < len(signal) :
-        if signal[i] == 1:
-            idx_list = []
-            while i < len(signal) and signal[i] == 1:
-                idx_list.append(i)
-                i += 1
-            consecutive.append(idx_list)
-        else:
-            i += 1
-    return consecutive
-
 

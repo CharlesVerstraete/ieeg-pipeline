@@ -13,20 +13,32 @@ Electrodes visualisation
 from preprocessing.config import *
 from preprocessing.utils.data_helper import *
 from preprocessing.utils.anat_helper import *
-from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Normalize
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-# plt.style.use('seaborn-v0_8-poster') 
+from scipy.ndimage import binary_dilation
 
 
-
-test = plt.get_cmap('tab20b')  # for up to 20 colors
-colors = test(np.linspace(0, 1, len(area_dict.keys())))  # Generate 26 distinct colors
-area_colors = {key : colors[val-1] for key, val in area_dict.items()}
 atlas_ref, atlas_img, atlas_data = get_atlas_data(ATLAS_DIR)
 
+
+merged_sulcus = np.zeros(atlas_data.shape)
+n_sulcus = 0
+for subject in SUBJECTS :
+    path = os.path.join(DATA_DIR, f'sub-{subject:03d}', 'raw', 'anat', f'sub-{subject:03}_sulcus.nii')
+    if os.path.exists(path) :
+        img = nib.load(path)
+        data = img.get_fdata()
+        data = data.astype(int)
+        dilated_data = binary_dilation(data > 0, structure = np.ones((1, 1, 1))).astype(np.uint8)
+        merged_sulcus += dilated_data
+        n_sulcus += 1
+
+merged_sulcus = merged_sulcus / n_sulcus
+merged_sulcus[merged_sulcus == 0] = np.nan
+sulcus_img = nib.Nifti1Image(merged_sulcus, atlas_img.affine, atlas_img.header)
+nib.save(sulcus_img,  "merged_sulcus.nii")
+plt.imshow(np.nanmean(merged_sulcus[85:90, :, :], axis=0, keepdims=True).T, cmap="jet", origin="lower")
+plt.colorbar()
+plt.show()
 
 complete_electrodes = pd.DataFrame()
 for subject in SUBJECTS :
@@ -77,17 +89,16 @@ brain = mne.viz.Brain(
     size=(4096, 2160),
     alpha=0.5,
 )
-
+brain.add_data(
+    atlas_filtered,
+    colormap=custom_cmap, 
+    alpha=1, 
+    colorbar=False,
+    fmin = 0,
+    fmax = count["count"].max() + 1,
+)
 collection_img = {}
 for view in ["lateral", "medial", "dorsal", "ventral", "rostral", "frontal"]:
-    brain.add_data(
-        atlas_filtered,
-        colormap=custom_cmap, 
-        alpha=1, 
-        colorbar=False,
-        fmin = 0,
-        fmax = count["count"].max() + 1,
-    )
     brain.show_view(view)
     screenshot = brain.screenshot()
     collection_img[view] = screenshot
@@ -129,7 +140,7 @@ brain = mne.viz.Brain(
     cortex="ivory",
     background="white",
     size=(4096, 2160),
-    alpha=0.8
+    alpha=0.5
 )
 for (i, (region, sdf)) in enumerate(frontal_electrodes_gm.groupby("region")) :
     color = area_colors[region]
@@ -172,6 +183,9 @@ frontal_atlas["area"] = [area_dict[x] for x in frontal_atlas["ROI_glasser_2"].va
 labels = mne.read_labels_from_annot("fsaverage", "HCPMMP1", "rh")
 formated_labels = {label.name.split("_")[1] : label for label in labels[1:]}
 
+
+
+
 brain = mne.viz.Brain(
     "fsaverage",
     "rh",
@@ -180,6 +194,8 @@ brain = mne.viz.Brain(
     background="white",
     size=(4096, 2160),
     alpha=0.8,
+    # offscreen=True,
+    # show=False,
 )
 for (i, (region, sdf)) in enumerate(frontal_atlas.groupby("ROI_glasser_2")) :
     color = area_colors[region]
@@ -188,4 +204,28 @@ for (i, (region, sdf)) in enumerate(frontal_atlas.groupby("ROI_glasser_2")) :
         label = formated_labels[name]
         brain.add_label(label,color=color,alpha=1, hemi="rh")
 
+collection_img = {}
+for view in ["lateral", "medial", "dorsal", "ventral", "rostral", "frontal"]:
+    brain.show_view(view)
+    screenshot = brain.screenshot()
+    collection_img[view] = screenshot
 
+brain.close()
+
+
+fig, axes = plt.subplots(
+    nrows=2,
+    ncols=3,
+    figsize=(21, 12),
+)
+for (i, (view, ax)) in enumerate(zip(collection_img.keys(), axes.flatten())):
+    nonwhite_pix = (collection_img[view] != 255).any(-1)
+    nonwhite_row = nonwhite_pix.any(1)
+    nonwhite_col = nonwhite_pix.any(0)
+    cropped_screenshot = collection_img[view][nonwhite_row][:, nonwhite_col]
+    ax.imshow(cropped_screenshot)
+    ax.set_title(view)
+    ax.axis("off")
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, "localisation", "areas.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
+plt.show()

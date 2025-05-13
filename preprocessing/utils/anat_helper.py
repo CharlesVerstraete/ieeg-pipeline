@@ -42,7 +42,8 @@ def get_bordeaux_df(path):
     df.drop(index=len(df)-1, inplace=True)
     df["is_inmask"] = df["matter"] == "grey"
     df.rename(columns={"Electrode": "electrode"}, inplace=True)
-    df["name"] = [f"{elec}{n}" for elec, n in df[["electrode", "Contact"]].values]
+    df["electrode"] = df["electrode"].str.lower()
+    df["name"] = [f"{elec}{int(n)}".lower() for elec, n in df[["electrode", "Contact"]].values]
     df.reset_index(drop=True)
     return df[["electrode", "name", "x", "y", "z", "is_inmask"]] 
 
@@ -55,8 +56,8 @@ def format_grenoble_df(df):
     coords = df["MNI"].str.strip('[]').str.split(',', expand=True)
     for i, col in enumerate(["x", "y", "z"]):
         new_df[col] = coords[i].astype(float)
-    new_df["name"] = df["contact"]
-    new_df["electrode"] = [match.group(1) for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in new_df['name'].values]]
+    new_df["name"] = [(match.group(1)+str(int(match.group(2)))).lower() for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in df["contact"].values]]
+    new_df["electrode"] = [match.group(1).lower() for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in new_df['name'].values]]
     new_df["is_inmask"] = df["GreyWhite"] == "GreyMatter"
     return new_df
 

@@ -11,11 +11,12 @@ Stimulus channel : sti2+
 Aligning events with trigger table
 7 sample drift during the 3500 seconds recording
 First sample index in task 30 in .trc, 21 in trigger table
-Event 1228 in realign trigger table is a duplicated sample (6 sample answer from subject not passed in system)
+Event 1228 (1249) in realign trigger table is a duplicated sample (6 sample answer from subject not passed in system)
 """
 
 # Import libraries
 from preprocessing.config import *
+from preprocessing.utils.align_helper import *
 from preprocessing.utils.data_helper import *
 
 
@@ -55,20 +56,24 @@ plt.show()
 # Center the events from signal and log
 time_events = sample_events/sfreq
 centered_events = time_events - time_events[0]
-
 trigger_table["sample"] = (trigger_table["time"] * sfreq).astype(int)
+
+trigger_table.drop(index=1249, inplace=True)
 
 log_time_events = trigger_table["time"].values
 log_sample_events = trigger_table["sample"].values
 
-signal_center_sample = sample_events[30:] - sample_events[30]
 log_center_sample = log_sample_events[21:] - log_sample_events[21]
+signal_center_sample = sample_events[30:] - sample_events[30]
+signal_center_sample = signal_center_sample[:3803]
 
 plt.scatter(np.arange(len(signal_center_sample)), signal_center_sample, color = "blue", alpha = 0.5, label = "Signal events")
 plt.scatter(np.arange(len(log_center_sample)), log_center_sample, color = "red", alpha = 0.5, label = "Log events")
 plt.legend()
 plt.show()
 
+plt.scatter(np.arange(len(signal_center_sample)), signal_center_sample - log_center_sample, color = "black", alpha = 1, label = "Signal events")
+plt.show()
 
 # Align the events from the signal and the log
 align_trigger_table = trigger_table.loc[21:].copy().reset_index(drop=True)
@@ -90,7 +95,7 @@ for i in range(len(align_trigger_table)):
 
 threshold = 8
 align_trigger_table["good_match"] = align_trigger_table["match_distance"] <= threshold
-align_trigger_table.loc[1228, "good_match"] = False
+# align_trigger_table.loc[1228, "good_match"] = False
 
 plt.plot(align_trigger_table["good_match"])
 plt.show()

@@ -109,8 +109,8 @@ class Anatomy:
         self.electrode_df = pd.DataFrame(coords, columns = ['x', 'y', 'z'])
         with open(name_path) as f:
             name_elec = [line.rstrip('\n') for line in f]
-        self.electrode_df["name"] = name_elec
-        self.electrode_df['electrode'] = [match.group(1) for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in self.electrode_df['name'].values]]
+        self.electrode_df["name"] = [x.lower() for x in name_elec]
+        self.electrode_df['electrode'] = [match.group(1).lower() for match in [re.match(r"([A-Za-z']+)([ \d]+)", name) for name in self.electrode_df['name'].values]]
         self.electrode_df["subject"] = self.subject_num
         self.check_good_electrodes()
 

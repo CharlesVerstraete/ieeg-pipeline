@@ -43,8 +43,27 @@ for (i, ieeg_file) in enumerate(ieeg_files):
 
     if raw.info['sfreq'] < SAMPLING_RATE:
         raw, new_events = raw.resample(SAMPLING_RATE, events = new_events, n_jobs=-1)
+
+        
+    new_type = ["seeg" if x == "eeg" else x for x in raw.get_channel_types()]
+    mapping = {x: y for x, y in zip(raw.ch_names, new_type)}
+    raw.set_channel_types(mapping)
+
+    channel_names = raw.ch_names.copy()
+    for i in range(len(channel_names)):
+        if "EEG" in channel_names[i]:
+            channel_names[i] = channel_names[i].replace("EEG", "")
+        if " " in channel_names[i]:
+            channel_names[i] = channel_names[i].replace(" ", "")
+        channel_names[i] = channel_names[i].lower()
+
+    mapping = {x: y for x, y in zip(raw.ch_names, channel_names)}
+    raw.rename_channels(mapping)
+
     save_path = os.path.join(DATA_DIR, f'sub-{subject:03d}', 'raw', 'ieeg', f'sub-{subject:03d}_run-{idx:02d}-raw.fif')
     raw.save(save_path, overwrite=True)
+
+
 
 
 ############################################################################################################################################################################

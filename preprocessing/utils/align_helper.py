@@ -111,11 +111,13 @@ def get_behav_events(df):
 
     return np.hstack(events), np.hstack(trial_count)
 
-def needleman_wunsch(seq1, seq2, match_score=10, mismatch_score=-3, gap_open_seq1=-100, gap_extend_seq1=-40, gap_open_seq2=-100, gap_extend_seq2=-1, band_width=2000):
+def needleman_wunsch(seq1, seq2, match_score=5, mismatch_score=-3, gap_open_seq1=-100, gap_extend_seq1=-100, gap_open_seq2=-20, gap_extend_seq2=-1, band_width=2000):
+    """
+    Needleman-Wunsch algorithm for global sequence alignment with banded constraints.
+    """
     m, n = len(seq1), len(seq2)
     score_matrix = np.zeros((m + 1, n + 1), dtype=int)
     
-    # Initialize first row and column with gap penalties
     score_matrix[:, 0] = gap_open_seq1 + np.arange(m + 1) * gap_extend_seq1
     score_matrix[0, :] = gap_open_seq2 + np.arange(n + 1) * gap_extend_seq2
 
@@ -128,7 +130,7 @@ def needleman_wunsch(seq1, seq2, match_score=10, mismatch_score=-3, gap_open_seq
                 score_matrix[i - 1, j] + (gap_open_seq1 if j == start_j else gap_extend_seq1),
                 score_matrix[i, j - 1] + (gap_open_seq2 if i == max(1, j - band_width) else gap_extend_seq2)
             )
-    # Traceback
+
     align1, align2 = [], []
     i, j = m, n
     while i > 0 or j > 0:
@@ -148,6 +150,50 @@ def needleman_wunsch(seq1, seq2, match_score=10, mismatch_score=-3, gap_open_seq
     
     return ''.join(reversed(align1)), ''.join(reversed(align2))
 
+# def needleman_wunsch(seq1, seq2, match_score=5, mismatch_score=-3, gap_open_seq1=-1000, gap_extend_seq1=-1000, gap_open_seq2=-10, gap_extend_seq2=-1, band_width=2000):
+#     """
+#     Needleman-Wunsch algorithm for global sequence alignment with banded constraints.
+#     """
+#     m, n = len(seq1), len(seq2)
+#     score_matrix = np.zeros((m + 1, n + 1), dtype=int)
+#     score_matrix[1:, 0] = gap_open_seq1 + np.arange(m) * gap_extend_seq1
+#     score_matrix[0, 1:] = gap_open_seq2 + np.arange(n) * gap_extend_seq2
+#     for i in range(1, m + 1):
+#         start_j = max(1, i - band_width)
+#         end_j = min(n + 1, i + band_width + 1)
+#         for j in range(start_j, end_j):
+#             match = match_score if seq1[i-1] == seq2[j-1] else mismatch_score
+#             diag_score = score_matrix[i-1, j-1] + match
+
+#             is_first_gap_seq1 = j == start_j or score_matrix[i-1, j] != score_matrix[i-2, j] + gap_extend_seq1
+#             gap_penalty_seq1 = gap_open_seq1 if is_first_gap_seq1 else gap_extend_seq1
+#             up_score = score_matrix[i-1, j] + gap_penalty_seq1
+            
+#             is_first_gap_seq2 = i == start_j or score_matrix[i, j-1] != score_matrix[i, j-2] + gap_extend_seq2
+#             gap_penalty_seq2 = gap_open_seq2 if is_first_gap_seq2 else gap_extend_seq2
+#             left_score = score_matrix[i, j-1] + gap_penalty_seq2
+            
+#             score_matrix[i, j] = max(diag_score, up_score, left_score)
+    
+#     align1, align2 = [], []
+#     i, j = m, n
+    
+#     while i > 0 or j > 0:
+#         if i > 0 and j > 0 and score_matrix[i, j] == score_matrix[i-1, j-1] + (match_score if seq1[i-1] == seq2[j-1] else mismatch_score):
+#             align1.append(seq1[i-1])
+#             align2.append(seq2[j-1])
+#             i -= 1
+#             j -= 1
+#         elif i > 0 and (j == 0 or score_matrix[i, j] == score_matrix[i-1, j] + (gap_open_seq1 if i == 1 or score_matrix[i-1, j] != score_matrix[i-2, j] + gap_extend_seq1 else gap_extend_seq1)):
+#             align1.append(seq1[i-1])
+#             align2.append('-')
+#             i -= 1
+#         else:
+#             align1.append('-')
+#             align2.append(seq2[j-1])
+#             j -= 1
+    
+#     return ''.join(reversed(align1)), ''.join(reversed(align2))
 
 
 def get_events_fromsignal(raw, run) :
@@ -193,6 +239,33 @@ def format_events(events):
     return ''.join(map(str, formated))
 
 
+# def format_events(events):
+#     """
+#     Convert the events to a string.
+#     """
+#     formated = np.zeros(len(events), dtype=str)
+#     event_map = {
+#         (10): 'A', (11): 'B', (12): 'C',
+#         (20): 'D', (21): 'E', (22): 'F',
+#         (30): 'G', (31): 'H', (32): 'I',
+#         (100): 'J', (110): 'K', (200): 'L', (210): 'M',
+#         (101): 'N', (111): 'O', (201): 'P', (211): 'Q',
+#         (102): 'R', (112): 'S', (202): 'T', (212): 'U',
+#         (151): 'V', (152): 'W',
+#         (153): 'X', (154): 'Y',
+#         (253): 'Z'
+#     }
+
+#     for values, new_value in event_map.items():
+#         idx = np.where(events == values)[0]
+#         if len(idx) > 0:
+#             formated[idx] = new_value
+#     check = np.where(formated == '')[0]
+#     if len(check) > 0:
+#         formated[check] = "0"
+#     return ''.join(map(str, formated))
+
+
 def get_triplet_eventsdf(subject): 
     """
     
@@ -224,7 +297,7 @@ def create_alignseq(log_events, signal_events, beh_events):
     aligned_behav_log, _ = needleman_wunsch(format_behav_events, format_log_events)
     aligned_behav_eeg, aligned_eeg_behav = needleman_wunsch(format_behav_events, format_eeg_events)
 
-    return aligned_behav_eeg, aligned_behav_log, aligned_eeg_behav
+    return aligned_behav_log, aligned_behav_eeg, aligned_eeg_behav
 
 
 def check_alignement(events_df, signal_df, log_df) :
@@ -262,4 +335,24 @@ def make_eventsdf(beh_events_df, aligned_log_behav, aligned_eeg_behav) :
         "run" : np.nan
     })
     return events_df
+
+        
+def find_consecutive(signal):
+    """
+    Find all consecutive non-zero values in a binary signal
+    """
+    signal = np.array(signal)
+    consecutive = []
+    i = 0
+    while i < len(signal) :
+        if signal[i] == 1:
+            idx_list = []
+            while i < len(signal) and signal[i] == 1:
+                idx_list.append(i)
+                i += 1
+            consecutive.append(idx_list)
+        else:
+            i += 1
+    return consecutive
+
 
