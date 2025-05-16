@@ -17,22 +17,11 @@ import matplotlib.pyplot as plt
 import mne
 from copy import deepcopy
 import gc
+import json
 
-# Set the path to directories
-ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
-ORIGINAL_DATA_DIR = os.path.join(ORIGINAL_DIR, "subject_collection")
-
-FIRST_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis/data")
-
-SECOND_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis_v2/data")
-
-ROOT_DIR = os.path.join(ORIGINAL_DIR, "analysis_v3")
-DATA_DIR = os.path.join(ROOT_DIR, "data")
-PREPROCESSING_DIR = os.path.join(ROOT_DIR, "preprocessing")
-FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
-
-ATLAS_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/analysis/data/anatomical_atlas"
-
+DATA_DIR = "/home/cverstraete/nasShare/projects/cverstraete/data"
+OUTPUT_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/outputs"
+FIGURES_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/figures"
 # Set subjects and sessions
 N_SUBJECTS = 28
 BAD_SUBJECTS = [1, 6, 7, 10, 11, 13, 15, 17,18, 21, 22, 24, 26, 27]
@@ -44,16 +33,6 @@ LINENOISE = 50
 SAMPLING_RATE = 2048
 HIGHPASS = 2
 LOWPASS = None
-
-FREQUENCY_BANDS = {
-    'delta': (2, 4),
-    'theta': (4, 8),
-    'alpha': (8, 12),
-    'low_beta': (12, 20),
-    'high_beta': (20, 40),
-    'low_gamma': (40, 80),
-    'high_gamma': (80, 150)
-}
 
 BAD_CHANNELS = {
     2 : ["r1", "h10", "or6", "oc10"],
@@ -144,7 +123,7 @@ freqlist = np.logspace(np.log10(2), np.log10(200), n_freqs)
 freqlist = np.round(freqlist*total_duration)/total_duration
 cycles = np.where(freqlist <= 32, 6.0, np.floor(0.24 * freqlist))
 
-frequency_bands = {
+FREQUENCY_BANDS = {
     'delta': (2, 4),
     'theta': (4, 8),
     'alpha': (8, 12),
@@ -154,16 +133,19 @@ frequency_bands = {
     'high_gamma': (80, 200)
 }
 
-fr_cutoff = [value for _, value in frequency_bands.items()]
+fr_cutoff = [value for _, value in FREQUENCY_BANDS.items()]
 band_indices = [np.argmin(np.abs(freqlist - val[0])) for val in fr_cutoff]
 band_indices.append(len(freqlist)-1)
-n_frband = len(frequency_bands)
+n_frband = len(FREQUENCY_BANDS)
 
 
 WOI_start_time = 1.5
 WOI_end_time = 3.5
 WOI_start_idx= int((epoch_padding - WOI_start_time) * sr_decimated)
 WOI_end_idx = int((WOI_end_time + epoch_padding) * sr_decimated)
-WOI_onset_idx = int((epoch_padding) * sr_decimated)
 
+n_timepoints = int((WOI_start_time + WOI_end_time) * sr_decimated)
+timearray = np.linspace(-WOI_start_time, WOI_end_time, int((WOI_start_time + WOI_end_time)*2+1))
+arranged_timearray = np.arange(0, n_timepoints+1, n_timepoints/(len(timearray)-1))
 
+onset = int(WOI_start_time * sr_decimated)

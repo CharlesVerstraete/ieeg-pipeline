@@ -9,140 +9,108 @@ Time-frequency decomposition of the epoched signal
 """
 
 from preprocessing.config import *
+from preprocessing.utils.data_helper import *
+import json
+from tqdm import tqdm
+
+
+subject = 14
+
+ch_names = epochs.info["ch_names"]
+sfreq = epochs.info["sfreq"]
+
+n_epochs = len(epochs)
+n_channels = len(ch_names)
+
+power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-power.npy")
+phase_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-phase.npy")
+
+power_complete = np.memmap(power_path, dtype = 'float16',mode = 'w+', shape = (n_epochs, n_channels, n_freqs, n_times_decimed))
+
+# for subject in SUBJECTS:
+# metadata_path =  os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "epochs", f"sub-{int(subject):03}_meta-data.json")
+# with open(metadata_path, 'r') as f:
+#     metadata = json.load(f)
+
+# behav_files = get_fileslist(os.path.join(SECOND_ANALYSIS__DATA_DIR, f"sub-{subject:03}", "raw", "beh"), "stratinf_beh.tsv")
+# beh_df = pd.read_csv(behav_files[0], sep="\t")
+# events_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "raw", "ieeg", f"sub-{int(subject):03}_events.tsv")
+# events = pd.read_csv(events_path, sep = "\t")
+# eeg_alignement = events["align_eeg"].values.astype(str)
+# eeg_stim_count = sum(s.count(c) for s in eeg_alignement for c in '123')
+# print(metadata["n_epochs"], eeg_stim_count)
 
 
 
 
+# subject = SUBJECTS[3]
+# for subject in SUBJECTS[7:]:
+subject = 2
+    print(f"Processing subject {subject}")
+    epochs_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "epochs", f"sub-{int(subject):03}_ieeg-epochs.fif")
+    epochs = mne.read_epochs(epochs_path, preload = True, verbose='error')
+    ch_names = epochs.info["ch_names"]
+    sfreq = epochs.info["sfreq"]
+
+    n_epochs = len(epochs)
+    n_channels = len(ch_names)
+
+    power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-power.npy")
+    phase_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-phase.npy")
+
+    power_complete = np.memmap(power_path, dtype = 'float16',mode = 'w+', shape = (n_epochs, n_channels, n_freqs, n_times_decimed))
+    phase_complete = np.memmap(phase_path, dtype = 'float16',mode = 'w+', shape = (n_epochs, n_channels, n_freqs, n_times_decimed))
+    data = epochs.get_data(copy=True)
+    del epochs
+    gc.collect()
+
+    for start_idx in tqdm(range(0, n_epochs, 20)) :
+        end_idx = min(start_idx + 20, n_epochs)
+        batch_data = data[start_idx:end_idx, :, :]
+        tfr = mne.time_frequency.tfr_array_multitaper(batch_data, sfreq, freqs=freqlist, n_cycles=cycles, time_bandwidth=3.0, use_fft=True, decim=decimation, n_jobs=-1, output='complex', verbose=False)
+        
+        power = np.abs(tfr) ** 2
+        power_avg = np.mean(power, axis=2) 
+        power_db = 10 * np.log10(power_avg)
+        power_complete[start_idx:end_idx] += power_db
+
+        phase = np.angle(tfr)
+        phase_avg_tapers = np.angle(np.mean(np.exp(1j * phase), axis=2))
+        phase_complete[start_idx:end_idx] += phase_avg_tapers
+        
+        power_complete.flush()
+        phase_complete.flush()
+
+        del power, power_avg, power_db, tfr, batch_data, phase, phase_avg_tapers
+        gc.collect()
 
 
+    del data
+    gc.collect()
 
+    meta_data = {
+        'sfreq': sfreq,
+        'n_epochs': n_epochs,
+        'n_channels': n_channels,
+        'n_times': n_times,
+        'ch_names': ch_names,
+        'n_freqs' : n_freqs,
+        'freqlist': freqlist.tolist(),
+        'cycles': cycles.tolist(),
+        'times_decimed': times_decimed.tolist(),
+        'n_times_decimed': n_times_decimed,
+        'time_bandwidth': 3.0,
+        'decim': decimation,
+        'output': 'complex'
+    }
 
-# batch_data = data[10:20, :, :]
-# tfr = mne.time_frequency.tfr_array_multitaper(batch_data, SAMPLING_RATE, freqs=freqlist, n_cycles=cycles, time_bandwidth=3.0, use_fft=True, decim=8, n_jobs=-1, output='complex', verbose=False)
+    metadata_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-metadata.json"))
+    with open(metadata_path, 'w', encoding='utf-8') as f: 
+        json.dump(meta_data, f, ensure_ascii=False, indent=4)
 
-# power = np.abs(tfr) ** 2
-# power_avg = np.mean(power, axis=2) 
-# power_db = 10 * np.log10(power_avg)
+    baseline_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}","preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-baseline.npy"))
+    baseline_power = np.mean(power_complete, axis=-1, keepdims=True)
+    np.save(baseline_path, baseline_power)
+    del power_complete, phase_complete, baseline_power
+    gc.collect()
 
-# baseline = np.mean(power_db, axis=-1, keepdims=True)
-# power_baseline = power_db - baseline
-# lim = np.max((np.abs(power_baseline.min()), np.abs(power_baseline.max())))
-
-# for i in range(10) :
-#     lim = np.max((np.abs(power_baseline[i, 4, :, :].min()), np.abs(power_baseline[i, 4, :, :].max())))
-#     plt.imshow(power_baseline[i, 8, :, :], aspect='auto', origin='lower', interpolation='nearest', cmap='jet', vmin=-lim, vmax=lim)
-#     plt.colorbar()
-#     plt.show()
-
-
-# phase = np.angle(tfr)
-# phase_avg_tapers = np.angle(np.mean(np.exp(1j * phase), axis=2))  # Moyenne complexe des phases
-# itpc = np.abs(np.mean(np.exp(1j * phase_avg_tapers), axis=0))  # Inter-Trial Phase Coherence
-
-
-# # 2. Visualiser l'ITPC pour un canal et une fréquence spécifiques
-# channel_idx = 0  # Premier canal
-# freq_idx = 30    # 21ème fréquence (vérifiez sa valeur avec freqlist[freq_idx])
-
-
-# plt.figure(figsize=(10, 5))
-# plt.plot(epochs.times[::8], np.mean(itpc[channel_idx, freq_idx, :], axis=0))
-# plt.axvline(x=0, color='r', linestyle='--')  # Marquer le temps zéro
-# plt.title(f'ITPC - Canal {clean_electrode["name"].values[channel_idx]}, Freq: {freqlist[freq_idx]:.1f} Hz')
-# plt.xlabel('Temps (s)')
-# plt.ylabel('ITPC')
-# plt.grid(True)
-# plt.show()
-
-
-# # 3. Calculer la différence de phase entre deux canaux (PLV - Phase Locking Value)
-# channel1 = 0
-# channel2 = 1
-# phase_diff = phase_avg_tapers[:, channel1, :, :] - phase_avg_tapers[:, channel2, :, :]
-# # Normaliser sur le cercle trigonométrique
-# phase_diff = np.angle(np.exp(1j * phase_diff))
-# # Calculer la PLV (moyenner la différence de phase à travers les essais)
-# plv = np.abs(np.mean(np.exp(1j * phase_diff), axis=0))
-# # plv est maintenant de dimensions (n_freqs, n_times)
-# plt.imshow(plv, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis')
-# plt.colorbar(label='Phase Locking Value')
-# plt.show()
-# # 4. Calculer la moyenne de phase ou la direction préférée
-# mean_phase = np.angle(np.mean(np.exp(1j * phase_avg_tapers), axis=0))
-# # mean_phase est de dimensions (n_channels, n_freqs, n_times)
-# plt.figure(figsize=(10, 5))
-# for i in range(10) :
-#     plt.subplot(2, 5, i+1)
-#     plt.imshow(mean_phase[i, :, :], aspect='auto', origin='lower', interpolation='nearest', cmap='jet')
-#     plt.title(f'Canal {i}')
-#     plt.colorbar(label='Phase (radians)')
-# plt.tight_layout()
-# plt.show()
-
-# # 5. Analyser le reset de phase après un événement
-# # Sélectionner une bande de fréquence (par exemple, alpha)
-# theta_idx = np.where((freqlist >= 4) & (freqlist <= 8))[0]
-# # Calculer l'ITPC moyen dans la bande alpha
-# alpha_itpc = np.mean(itpc[:, theta_idx, :], axis=1)
-
-# # 6. Visualiser l'ITPC dans une carte temps-fréquence
-# plt.figure(figsize=(12, 6))
-# plt.imshow(itpc[channel_idx], aspect='auto', origin='lower', 
-#           extent=[epochs.times[0], epochs.times[-1], freqlist[0], freqlist[-1]],
-#           cmap='viridis')
-# plt.colorbar(label='ITPC')
-# plt.axvline(x=0, color='r', linestyle='--')  # Marquer le temps zéro
-# plt.title(f'ITPC - Canal {clean_electrode["name"].values[channel_idx]}')
-# plt.xlabel('Temps (s)')
-# plt.ylabel('Fréquence (Hz)')
-# plt.ylim(2, 80)  # Limiter la plage de fréquences affichées
-# plt.yscale('log')  # Échelle logarithmique pour les fréquences
-# plt.show()
-
-# # 7. Extraire la phase à un moment spécifique (par exemple, au stimulus)
-# # Trouver l'index du temps 0
-# zero_idx = np.where(np.abs(epochs.times[::8]) == np.min(np.abs(epochs.times[::8])))[0][0]
-# # Phase au moment du stimulus pour tous les canaux et fréquences
-# stim_phase = phase[:, :, :, zero_idx]
-
-# phase_diff_plv = phase[:, channel1, :, :] - phase[:, channel2, :, :]
-# pli = np.abs(np.mean(np.sign(np.sin(phase_diff_plv)), axis=0))
-
-
-# plt.imshow(phase_avg_tapers[0, 0, :, :], aspect='auto', origin='lower', interpolation='nearest', cmap='jet')
-# plt.show()
-
-
-# # Moyenne sur tous les essais et conditions pour un canal spécifique
-# channel_idx = 0  # Premier canal
-# power_tf_map = np.mean(np.mean(power_baseline[:, channel_idx, :, :, :], axis=0), axis=0)  # Forme: (80, 3073)
-
-# # Visualisation améliorée
-# plt.figure(figsize=(12, 6))
-# plt.imshow(power_tf_map, aspect='auto', origin='lower', 
-#            extent=[epochs.times[0], epochs.times[-1], freqlist[0], freqlist[-1]],
-#            cmap='jet')
-# plt.colorbar(label='Power (dB)')
-# plt.axvline(x=0, color='white', linestyle='--')  # Marquer le temps zéro
-# plt.title(f'TF Map - Canal {clean_electrode["name"].values[channel_idx]}')
-# plt.xlabel('Temps (s)')
-# plt.ylabel('Fréquence (Hz)')
-# plt.ylim(2, 80)  # Limiter la plage de fréquences affichées
-# plt.yscale('log')  # Échelle logarithmique pour les fréquences
-# plt.tight_layout()
-# plt.show()
-
-
-
-# high_gamma_idx = np.where((freqlist >= 70) & (freqlist <= 150))[0]
-# # Moyenne sur tous les essais et canaux pour la bande alpha
-# alpha_power = np.mean(np.mean(np.mean(power_baseline[:, :, :, high_gamma_idx, :], axis=0), axis=0), axis=1)  # Forme: (3073,)
-
-# plt.figure(figsize=(10, 5))
-# plt.plot(epochs.times[::8], alpha_power[0])
-# plt.axvline(x=0, color='red', linestyle='--')  # Marquer le temps zéro
-# plt.title('Puissance moyenne dans la bande alpha')
-# plt.xlabel('Temps (s)')
-# plt.ylabel('Puissance (dB)')
-# plt.grid(True)
-# plt.show()
