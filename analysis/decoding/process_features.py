@@ -5,14 +5,15 @@
 Module pour extraire et préparer les caractéristiques pour l'analyse
 """
 
-from decoding.config import *
+from analysis.decoding.config import *
 # from config import *
 from joblib import Parallel, delayed
 
 class Features:
-    def __init__(self, power_data, phase_data):
+    def __init__(self, power_data, phase_data, subject):
         self.power_data = power_data
         self.phase_data = phase_data
+        self.subject = subject
         self.n_epochs = power_data.shape[0]
         self.n_channels = power_data.shape[1]
         self.all_features = [(fr, ch) for fr in range(n_frband) for ch in range(self.n_channels)]
@@ -20,6 +21,14 @@ class Features:
         self.phase_bands = None
         self.phase_sin_bands = None
         self.phase_cos_bands = None
+
+    def baseline_signal(self) :
+        """Baseline the signal for power data"""
+        baseline_path = os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "timefreq", f"sub-{int(self.subject):03}_tfr-baseline.npy")
+        baseline = np.load(baseline_path)
+        self.power_data -= baseline
+        del baseline
+        gc.collect()
 
     def _compute_power_band_channel(self, i, ch):
         """Compute power for a specific frequency band and channel"""

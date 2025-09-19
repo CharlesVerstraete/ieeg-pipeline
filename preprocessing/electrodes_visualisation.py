@@ -13,8 +13,12 @@ Electrodes visualisation
 from preprocessing.config import *
 from preprocessing.utils.data_helper import *
 from preprocessing.utils.anat_helper import *
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
+
 
 from scipy.ndimage import binary_dilation
+
 
 
 atlas_ref, atlas_img, atlas_data = get_atlas_data(ATLAS_DIR)
@@ -41,7 +45,7 @@ plt.colorbar()
 plt.show()
 
 complete_electrodes = pd.DataFrame()
-for subject in SUBJECTS :
+for subject in [2, 3, 4, 5, 8, 9, 12, 14, 16, 18, 19, 20, 23, 25, 28] :
     path = os.path.join(DATA_DIR, f'sub-{subject:03d}', 'raw', 'anat', f'sub-{subject:03}_electrodes-bipolar.csv')
     df = pd.read_csv(path)
     df["subject"] = subject
@@ -50,15 +54,38 @@ for subject in SUBJECTS :
 frontal_electrodes = complete_electrodes[(complete_electrodes["lobe"] == "Fr") | (complete_electrodes["lobe"] == "Ins")].copy()
 frontal_electrodes_gm = frontal_electrodes[frontal_electrodes["is_inmask"]].copy()
 
-count = frontal_electrodes_gm.groupby(["region"]).size().reset_index(name="count")
+# frontal_electrodes_gm = group_transition.anatomy_data
+
+complete_electrodes_gm = complete_electrodes[complete_electrodes["is_inmask"]].copy()
+
+
+
+# complete_electrodes.columns
+
+complete_electrodes_gm = complete_electrodes_gm.merge(atlas_ref[["cortex", "ROI_n", "ROI_glasser_1", "ROI_glasser_2"]], left_on="roi_name", right_on="ROI_glasser_1", how="left")
+
+count = complete_electrodes_gm.groupby(["cortex", "subject"]).size().reset_index(name="count")
+
+count_subject = count.groupby(["cortex"]).size().reset_index(name="count")
+count_subject = count_subject.merge(atlas_ref[["cortex", "ROI_n"]], left_on="cortex", right_on="cortex", how="left")
+
+count_total = count.groupby(["cortex"])["count"].sum().reset_index()
+count_total = count_total.merge(atlas_ref[["cortex", "ROI_n"]], left_on="cortex", right_on="cortex", how="left")
+
+
+count = pd.read_csv("subjects___electrodes_per_brain_area__filtered_to_nomenclature_only_.csv")
+count = count.merge(atlas_ref[["cortex", "ROI_n"]], left_on="network", right_on="cortex", how="left")
+
+count
+
 count["area"] = [area_dict[x] for x in count["region"].values]
 count.sort_values("area", inplace=True)
 
 fig = plt.figure(figsize=(21, 12))
-sns.barplot(data=count, x="region", y="count", hue="region", alpha = 1, errorbar=None, palette=area_colors)
+sns.barplot(data=count, x="cortex", y="count", hue = "subject", alpha = 1, errorbar=None)
 plt.xticks(rotation=90)
 plt.tight_layout()
-plt.savefig(os.path.join(FIGURES_DIR, "localisation", "roi_count.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
+# plt.savefig(os.path.join(FIGURES_DIR, "localisation", "roi_count.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
 plt.show()
 
 
@@ -66,18 +93,36 @@ plt.show()
 
 
 
-atlas = surface.load_surf_data(FIRST_ANALYSIS__DATA_DIR + "/anatomical_atlas/rh.HCP-MMP1.annot")
+atlas = surface.load_surf_data(ATLAS_DIR + "/rh.HCP-MMP1.annot")
 fsaverage_orig = datasets.fetch_surf_fsaverage("fsaverage")
 fsaverage = datasets.fetch_surf_fsaverage("fsaverage")
 coords_orig, _ = surface.load_surf_data(fsaverage_orig[f"pial_right"])
 coords_target, _ = surface.load_surf_mesh(fsaverage[f"pial_right"])
 resampled_atlas = surface_resample(atlas, coords_orig, coords_target)
 
-count = frontal_electrodes_gm.groupby(["region", "roi_n"]).size().reset_index(name="count")
-custom_cmap = create_customcmap(count["count"].min(), count["count"].max(), 10, "Spectral_r")
+# count = complete_electrodes_gm.groupby(["region", "roi_n"]).size().reset_index(name="count")
+# count = complete_electrodes_gm.groupby(["roi_n"]).size().reset_index(name="count")
+
+custom_cmap = create_customcmap(count_subject["count"].min(), count_subject["count"].max(), 2, "viridis")
+base_cmap = plt.get_cmap("viridis")
+x = np.linspace(0, 1, 128) 
+custom_cmap = ListedColormap(base_cmap(x))
+
+
 atlas_filtered = np.zeros(resampled_atlas.shape)
 for (i, (idx, row)) in  enumerate(count.iterrows()) :
-    atlas_filtered[resampled_atlas == row["roi_n"]] = row["count"]
+    atlas_filtered[resampled_atlas == row["ROI_n"]] = row["total_electrodes"]
+atlas_filtered[atlas_filtered == 0] = np.nan
+
+
+
+
+atlas_filtered = np.zeros(resampled_atlas.shape)
+for (i, (region, sdf)) in enumerate(atlas_ref.groupby("cortex")) :
+    print(f"{i+1} : {region}")
+    for (j, (idx, row)) in  enumerate(sdf.iterrows()) :
+        atlas_filtered[resampled_atlas == row["ROI_n"]] = i + 1
+
 atlas_filtered[atlas_filtered == 0] = np.nan
 
 brain = mne.viz.Brain(
@@ -94,9 +139,11 @@ brain.add_data(
     colormap=custom_cmap, 
     alpha=1, 
     colorbar=False,
-    fmin = 0,
-    fmax = count["count"].max() + 1,
+    fmin = 1,
+    fmax = count["total_electrodes"].max(),
 )
+
+
 collection_img = {}
 for view in ["lateral", "medial", "dorsal", "ventral", "rostral", "frontal"]:
     brain.show_view(view)
@@ -105,7 +152,7 @@ for view in ["lateral", "medial", "dorsal", "ventral", "rostral", "frontal"]:
 
 brain.close()
 
-norm = Normalize(vmin=count["count"].min(), vmax=count["count"].max() + 1)
+norm = Normalize(vmin=count["total_electrodes"].min(), vmax=count["total_electrodes"].max() + 1)
 mappable = ScalarMappable(norm=norm, cmap=custom_cmap)
 mappable.set_array([])  # Needed when not mapping to a specific array
 
@@ -130,8 +177,12 @@ cbar = plt.colorbar(
     orientation="vertical"
 )
 plt.tight_layout()
-plt.savefig(os.path.join(FIGURES_DIR, "localisation", "electrode_density.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
+# plt.savefig(os.path.join(FIGURES_DIR, "localisation", "electrode_density.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
+plt.savefig(os.path.join("../for_joao/total_heatmap_2.pdf"), transparent=True, format='pdf',  bbox_inches='tight')
 plt.show()
+
+
+
 
 brain = mne.viz.Brain(
     "fsaverage",

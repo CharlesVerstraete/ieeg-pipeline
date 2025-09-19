@@ -6,7 +6,7 @@ Module pour charger les données iEEG pour l'analyse
 """
 
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Qt5Agg')
 
 # from decoding.loader import iEEGDataLoader
 # from decoding.process_features import Features
@@ -14,45 +14,172 @@ matplotlib.use('Agg')
 # from decoding.config import *
 
 
-from decoding.loader import iEEGDataLoader
-from decoding.process_features import Features
-from decoding.decoding import Decoding
-from decoding.config import *
+from analysis.decoding.loader import iEEGDataLoader
+from analysis.decoding.process_features import Features
+from analysis.decoding.decoding import Decoding
+from analysis.decoding.config import *
+
+plt.style.use('seaborn-v0_8-paper') 
+
+full_df_selection = pd.DataFrame()
+full_df_transtion = pd.DataFrame()
+for subject in [2, 3, 4, 5, 8, 9, 12, 14, 16, 19, 20, 23, 25, 28]:
+    loader = iEEGDataLoader(subject)
+    df, _ = loader.load_behavior("transition")
+    df = add_before_pres(df)
+    df = add_before_trial(df)
+    full_df_transtion = pd.concat([full_df_transtion, df], ignore_index=True)
+    df, _ = loader.load_behavior("selection")
+    full_df_selection = pd.concat([full_df_selection, df], ignore_index=True)
 
 
 
-subject = 3
-loader = iEEGDataLoader(subject)
+# for subject in [2, 3, 4, 5, 8, 9, 12, 14, 16, 19, 20, 23, 25, 28]:
+    loader = iEEGDataLoader(subject)
+    power_data = loader.load_power()
+    phase_data = loader.load_phase()
 
-power_data = loader.load_power()
-phase_data = loader.load_phase()
-behavior_df, event_to_keep = loader.load_behavior()
-anatomy_df = loader.load_anatomy()
+    behavior_df_selection, event_to_keep = loader.load_behavior("selection")
+    behavior_df_transition, _ = loader.load_behavior("transition")
+    anatomy_df = loader.load_anatomy()
+    features = Features(power_data, phase_data)
+    features.extract_power_bands()
+    X_power = features.power_bands[event_to_keep, :,:, WOI_start_idx:WOI_end_idx].copy()
 
-behavior_df["rpe"] = behavior_df["fb"] - behavior_df["q_choosen"]
-features = Features(power_data, phase_data)
-features.extract_power_bands()
-X_power = features.power_bands[event_to_keep, :,:, WOI_start_idx:WOI_end_idx].copy()
+    decode_selection = Decoding(X_power, behavior_df_selection, anatomy_df)
+    decode_selection.create_pipeline(n_folds=5, alphas=np.logspace(-1, 4, 6), classification=False)
+
+    decode_transition = Decoding(X_power, behavior_df_transition, anatomy_df)
+    decode_transition.create_pipeline(n_folds=5, alphas=np.logspace(-1, 4, 6), classification=False)
+
+
+    for i, var in enumerate(VAR_LIST) : 
+        decode_transition.run_decoding(var, n_jobs = -1, model_type = "transition")
+        decode_transition.run_decoding(var, n_jobs = -1, mode = "channel", model_type = "transition")
+        decode_selection.run_decoding(var, n_jobs = -1, model_type = "selection")
+        decode_selection.run_decoding(var, n_jobs = -1, mode = "channel", model_type = "selection")
+    decode_selection.plot_multi_tc("selection")
+    decode_selection.plot_multi_heatmap("selection")
+    decode_transition.plot_multi_tc("transition")
+    decode_transition.plot_multi_heatmap("transition")
+
+
+var = "rpe"
+
+decode_selection.run_decoding(var, n_jobs = -1, save_results = False)
+decode_transition.run_decoding(var, n_jobs = -1, save_results = False)
 
 
 
-decode = Decoding(X_power, behavior_df, anatomy_df)
-decode.create_pipeline(n_folds=5, alphas=np.logspace(-1, 4, 6), classification=False)
-# for i, var in enumerate(['reliability_max', 'reliability_choosen', 'update_reliability_max', 'entropy','q_choosen', "rpe"]) : 
-var = 'reliability_max'
-decode.run_decoding(var, n_jobs = -1)
-decode.run_decoding(var, n_jobs = -1, mode = "channel")
+plt.plot(decode_transition.results['timepoint'], decode_transition.metric_global_dict[var], lw = 2, color = "forestgreen", label = "transition")
+plt.plot(decode_selection.results['timepoint'], decode_selection.metric_global_dict[var], lw = 2, color = "royalblue", label = "selection")
+plt.axhline(0.0, color='black', linestyle='--')
+plt.axvline(onset, color='red', linestyle='--')
+plt.ylim(-0.2, 1)
+plt.xticks(ticks=arranged_timearray, labels=timearray)
+plt.tight_layout()
+plt.legend()
+plt.show()
 
-decode.plot_multi_tc()
-decode.plot_multi_heatmap()
+decode_selection.plot_multi_tc(figsize=(18, 10), save = False)
+
+
+var = "update_counterfactual"
+
+decode_selection.run_decoding(var, n_jobs = -1, mode = "channel",  save_results = False)
+decode_transition.run_decoding(var, n_jobs = -1, mode = "channel", save_results = False)
+
+
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 10), sharex=True, sharey=True)
+
+to_plot = decode_transition.metric_channel_dict[var][:, decode_transition.ordered_regions_idx]
+lim = np.max(np.abs(to_plot))
+im = ax1.imshow(to_plot.T, aspect='auto', cmap='jet', interpolation='nearest', vmin=-lim, vmax=lim)
+ax1.set_yticks(ticks=np.arange(decode_transition.n_channels), labels=decode_transition.ordered_regions)
+plt.colorbar(im, ax = ax1)
+ax1.set_title("Transition")
+
+to_plot = decode_selection.metric_channel_dict[var][:, decode_selection.ordered_regions_idx]
+lim = np.max(np.abs(to_plot))
+im = ax2.imshow(to_plot.T, aspect='auto', cmap='jet', interpolation='nearest', vmin=-lim, vmax=lim)
+plt.colorbar(im, ax = ax2)
+ax2.set_title("Selection")
+
+plt.tight_layout()
+plt.legend()
+plt.show()
+
+
+
+
+
+plt.scatter(behavior_df_selection["action_value"], behavior_df_transition["action_value"], s=5, alpha=0.4)
+plt.show()
+
+
+
+
+
+
+behavior_df_transition.columns
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 10), sharex=True, sharey=True)
+
+ax1.scatter(behavior_df_selection["rpe"], behavior_df_selection["update_counterfactual"], s=5, alpha=0.4)
+ax1.set_title("Selection")
+ax2.scatter(behavior_df_transition["rpe"], behavior_df_transition["update_counterfactual"], s=5, alpha=0.4)
+ax2.set_title("Transition")
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+full_df_selection
+
+
+
+
+decode_selection.plot_multi_tc(save = False, figsize = (20, 12))
+
+
+
+
+
+
+
+decode.run_decoding(var, n_jobs = -1, mode = "channel",  save_results = False)
+
+to_plot = decode.metric_channel_dict[var][:, decode.ordered_regions_idx]
+lim = np.max(np.abs(to_plot))
+plt.imshow(to_plot.T, aspect='auto', cmap='jet', interpolation='nearest', vmin=-lim, vmax=lim)
+plt.colorbar()
+plt.show()
+
+
+
+
+
+simu_path = os.path.join(CLUSTER_DIR, 'simu', 'selection',f"sub-{subject:03}_task-stratinf_sim-forced.csv")
+df = pd.read_csv(simu_path)
+df.columns
+
+beh_path = os.path.join(CLUSTER_DIR, 'beh', f"sub-{subject:03}_task-stratinf_beh.tsv")
+df = pd.read_csv(beh_path)
+
 
 
 decode.results
 
+fig, axs = plt.subplots(nrows=2, ncols=2)
+axs = axs.flatten()
 
 
-
-
+fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize, sharex=True, sharey=True)
+axs = axs.flatten()
 
 
 

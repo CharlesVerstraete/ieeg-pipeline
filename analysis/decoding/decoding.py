@@ -5,8 +5,8 @@
 
 """
 
-from decoding.config import *
-# from config import *
+# from decoding.config import *
+from analysis.decoding.config import *
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.linear_model import RidgeCV
 from sklearn.svm import LinearSVC
@@ -85,7 +85,7 @@ class Decoding:
             'betas': np.mean(fold_betas, axis=0)
         }
 
-    def compute_score_power(self, y, t, mode = "global"):
+    def compute_score_power(self, y, t, mode):
         """
         Compute the score for a specific time point.
         """
@@ -106,9 +106,9 @@ class Decoding:
         """Format the results"""
         if mode == "channel":
             self.results = {label: np.zeros((self.n_timepoint, self.n_channels)) for label in ["score", "metric"]}
-            self.results['betas'] = np.zeros((self.n_timepoint, self.n_freqs))
+            self.results['betas'] = np.zeros((self.n_timepoint, self.n_channels, self.n_freqs))
             for result in results:
-                t = result.keys()
+                t = list(result.keys())[0]
                 for ch in range(self.n_channels):
                     self.results['score'][t, ch] = result[t][ch]['score']
                     self.results['metric'][t, ch] = result[t][ch]['metric']
@@ -120,7 +120,7 @@ class Decoding:
             self.results = {label: np.zeros(self.n_timepoint) for label in ["score", "metric"]}
             self.results['betas'] = np.zeros((self.n_timepoint, self.n_channels, self.n_freqs))
             for result in results:
-                t = result.keys()
+                t = list(result.keys())[0]
                 self.results['score'][t] = result[t]['score']
                 self.results['metric'][t] = result[t]['metric']
                 self.results['betas'][t] = result[t]['betas'].reshape(self.n_channels, self.n_freqs)
@@ -131,7 +131,7 @@ class Decoding:
 
 
 
-    def run_decoding(self, var, mode = "global", n_jobs = -1, save_results = True, normalize = False):
+    def run_decoding(self, var, mode = "global", n_jobs = -1, model_type = "", save_results = True, normalize = False):
         """Run the decoding process"""
         y = self.beh[var].values
         if normalize:
@@ -146,18 +146,18 @@ class Decoding:
             )
         self._format_results(results, var, mode)
         if save_results:
-            self.save_results(var)
-    
-    def save_results(self, var, mode = "global"):
+            self.save_results(var, mode, model_type)
+
+    def save_results(self, var, mode, model_type):
         """Save the results to a file"""
         if mode == "channel":
-            score_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_score-channel.npy")
-            metric_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_metric-channel.npy")
-            betas_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_betas-channel.npy")
+            score_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_score-channel.npy")
+            metric_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_metric-channel.npy")
+            betas_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_betas-channel.npy")
         else:
-            score_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_score-global.npy")
-            metric_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_metric-global.npy")
-            betas_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_betas-global.npy")
+            score_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_score-global.npy")
+            metric_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_metric-global.npy")
+            betas_file = os.path.join(OUTPUT_DIR, f"{self.model_name}", f"{model_type}", f"sub-{int(self.subject):03}_{var}_{self.model_name}_fold-{self.n_folds}_betas-global.npy")
         np.save(score_file, self.results['score'])
         np.save(metric_file, self.results['metric'])
         np.save(betas_file, self.results['betas'])
@@ -181,7 +181,7 @@ class Decoding:
             plt.show()
         plt.close(fig)
 
-    def plot_multi_tc(self, y = "metric", save = True, figsize = (30, 19), extension = "png"):
+    def plot_multi_tc(self, model_type,y = "metric", save = True, figsize = (30, 19), extension = "png"):
         """Plot multiple accuracy time courses"""
         var_list = list(self.metric_global_dict.keys())
         nvar = len(var_list)
@@ -202,13 +202,13 @@ class Decoding:
             fig.delaxes(axs[j // ncols, j % ncols])
         plt.tight_layout()
         if save:
-            plt.savefig(os.path.join(FIGURES_DIR, f"sub-{int(self.subject):03}_multi_accuracy-tc.{extension}"))
+            plt.savefig(os.path.join(FIGURES_DIR, "decoding", f"sub-{int(self.subject):03}_multi_accuracy-tc-{model_type}.{extension}"))
         else:
             plt.show()
         plt.close(fig)
 
 
-    def plot_multi_heatmap(self, y = "metric", save = True, figsize = (30, 19), extension = "png"):
+    def plot_multi_heatmap(self, model_type, y = "metric", save = True, figsize = (30, 19), extension = "png"):
         """Plot multiple accuracy time courses"""
         var_list = list(self.metric_channel_dict.keys())
         nvar = len(var_list)
@@ -219,7 +219,7 @@ class Decoding:
         for i, var in enumerate(var_list):
             to_plot = self.metric_channel_dict[var][:, self.ordered_regions_idx]
             lim = np.max(np.abs(to_plot))
-            im = axs[i].imshow(to_plot, aspect='auto', cmap='jet', interpolation='nearest', vmin=-lim, vmax=lim)
+            im = axs[i].imshow(to_plot.T, aspect='auto', cmap='jet', interpolation='nearest', vmin=-lim, vmax=lim)
             plt.colorbar(im, ax=axs[i])
             axs[i].axvline(onset, color='black', linestyle='--')
             axs[i].set_title(f"{var} {y} channel accuracy")
@@ -230,7 +230,7 @@ class Decoding:
             fig.delaxes(axs[j // ncols, j % ncols])
         plt.tight_layout()
         if save:
-            plt.savefig(os.path.join(FIGURES_DIR, f"sub-{int(self.subject):03}_multi_accuracy-tc.{extension}"))
+            plt.savefig(os.path.join(FIGURES_DIR, "decoding", f"sub-{int(self.subject):03}_multi_accuracy-ht-{model_type}.{extension}"))
         else:
             plt.show()
         plt.close(fig)

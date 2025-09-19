@@ -14,14 +14,31 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib
 import mne
 from copy import deepcopy
 import gc
 import json
 
-DATA_DIR = "/home/cverstraete/nasShare/projects/cverstraete/data"
-OUTPUT_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/outputs"
-FIGURES_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/figures"
+matplotlib.use('Qt5Agg')
+plt.style.use('seaborn-v0_8-paper') 
+
+
+
+ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
+ROOT_DIR = os.path.join(ORIGINAL_DIR, "analysis_v3")
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+
+CLUSTER_DIR = os.path.join(ORIGINAL_DIR, "data_cluster")
+BEH_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/behaviour"
+
+FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
+OUTPUT_DIR = os.path.join(ROOT_DIR, "analysis", "decoding_outputs")
+VAR_LIST = ['reliability', 'entropy','action_value', "counterfactual", 'update_reliability', "rpe", "update_counterfactual", 'joint_counterfactual']
+
+# DATA_DIR = "/home/cverstraete/nasShare/projects/cverstraete/data"
+# OUTPUT_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/outputs"
+# FIGURES_DIR = "/home/cverstraete/nasShare/projects/cverstraete/analysis/figures"
 # Set subjects and sessions
 N_SUBJECTS = 28
 BAD_SUBJECTS = [1, 6, 7, 10, 11, 13, 15, 17,18, 21, 22, 24, 26, 27]
@@ -74,29 +91,59 @@ area_dict = {
 }
 
 
+# area_colors = {
+#     'Somatosensory': '#f17126',  # Orange plus intense
+#     'Motor': '#f58640',          # Pêche-orangé plus saturé
+#     'Premotor': '#f7a060',       # Pêche moyen renforcé
+#     'SMA': '#f8b17b',            # Pêche clair avec plus de contraste
+#     'preSMA': '#f9c298',         # Pêche clair, légèrement plus saturé
+    
+#     'Posterior_Insula': '#9de6b5',  # Vert menthe intensifié
+#     'Anterior_Insula': '#82d69b',   # Vert plus saturé
+#     'FOP': '#5ec783',              # Vert moyen plus vif
+    
+#     'mid-VLPFC': '#88c2e3',      # Bleu clair plus intense
+#     'VLPFC_POST': '#5caad7',     # Bleu moyen plus profond
+#     'DLPFC_POST': '#3992cb',     # Bleu plus dense et saturé
+#     'mid-DLPFC': '#0d7ac4',      # Bleu profond plus marqué
+    
+#     'DMPFC': '#c594db',          # Lavande rosé plus vif
+#     'MCCa': '#b475d0',           # Lavande moyen plus saturé
+#     'ACC': '#a055c2',            # Violet plus intense
+    
+#     'VMPFC': '#f290c0',          # Rose plus saturé
+#     'OFC': '#ec6ca9',            # Rose moyen plus vif
+#     'Frontopolar': '#e54994'     # Rose-rouge plus profond
+# }
+
 area_colors = {
-    'Somatosensory': '#f17126',  # Orange plus intense
-    'Motor': '#f58640',          # Pêche-orangé plus saturé
-    'Premotor': '#f7a060',       # Pêche moyen renforcé
-    'SMA': '#f8b17b',            # Pêche clair avec plus de contraste
-    'preSMA': '#f9c298',         # Pêche clair, légèrement plus saturé
+    # Gradient orange-pêche (espacement maximal)
+    'Somatosensory': '#cc3300',  # Rouge-orange très foncé
+    'Motor': '#e64d00',          # Orange foncé
+    'Premotor': '#ff6600',       # Orange vif
+    'SMA': '#ff8040',            # Orange moyen-clair (plus séparé)
+    'preSMA': '#ffb380',         # Orange très clair (bien distinct)
     
-    'Posterior_Insula': '#9de6b5',  # Vert menthe intensifié
-    'Anterior_Insula': '#82d69b',   # Vert plus saturé
-    'FOP': '#5ec783',              # Vert moyen plus vif
+    # Gradient vert (espacement maximal)
+    'Posterior_Insula': '#1a5c2a',  # Vert très foncé
+    'Anterior_Insula': '#2e7a40',   # Vert foncé
+    'FOP': '#80cc99',              # Vert clair (très distinct)
     
-    'mid-VLPFC': '#88c2e3',      # Bleu clair plus intense
-    'VLPFC_POST': '#5caad7',     # Bleu moyen plus profond
-    'DLPFC_POST': '#3992cb',     # Bleu plus dense et saturé
-    'mid-DLPFC': '#0d7ac4',      # Bleu profond plus marqué
+    # Gradient bleu (espacement maximal)
+    'mid-VLPFC': '#0d4d80',      # Bleu très foncé
+    'VLPFC_POST': '#1a66a0',     # Bleu foncé
+    'DLPFC_POST': '#4080cc',     # Bleu moyen-clair (plus séparé)
+    'mid-DLPFC': '#80c0ff',      # Bleu clair (très distinct)
     
-    'DMPFC': '#c594db',          # Lavande rosé plus vif
-    'MCCa': '#b475d0',           # Lavande moyen plus saturé
-    'ACC': '#a055c2',            # Violet plus intense
+    # Gradient violet (espacement maximal)
+    'DMPFC': '#4d1a66',          # Violet très foncé
+    'MCCa': '#7040aa',           # Violet moyen-clair (plus séparé)
+    'ACC': '#b380e6',            # Violet clair (très distinct)
     
-    'VMPFC': '#f290c0',          # Rose plus saturé
-    'OFC': '#ec6ca9',            # Rose moyen plus vif
-    'Frontopolar': '#e54994'     # Rose-rouge plus profond
+    # Gradient rose (espacement maximal)
+    'VMPFC': '#990033',          # Rose très foncé
+    'OFC': '#cc3366',            # Rose moyen
+    'Frontopolar': '#ff80b3'     # Rose clair (très distinct)
 }
 
 palette = sns.color_palette("Dark2")
@@ -104,6 +151,9 @@ stable_color = palette[3]
 partial_color = palette[2]
 complete_color = palette[0]
 palette_dict = {0: partial_color, 1: stable_color, -1: complete_color}
+switch_palette = {"overlap" : partial_color, "global" : complete_color, "random" : "grey"}
+rule_changes = {0: "Partial", 1: "Stable", -1: "Complete"}
+
 
 stim_ids = [10, 20, 30, 11, 21, 31, 12, 22, 32]
 
@@ -137,7 +187,7 @@ fr_cutoff = [value for _, value in FREQUENCY_BANDS.items()]
 band_indices = [np.argmin(np.abs(freqlist - val[0])) for val in fr_cutoff]
 band_indices.append(len(freqlist)-1)
 n_frband = len(FREQUENCY_BANDS)
-
+fr_cutoff
 
 WOI_start_time = 1.5
 WOI_end_time = 3.5
@@ -149,3 +199,5 @@ timearray = np.linspace(-WOI_start_time, WOI_end_time, int((WOI_start_time + WOI
 arranged_timearray = np.arange(0, n_timepoints+1, n_timepoints/(len(timearray)-1))
 
 onset = int(WOI_start_time * sr_decimated)
+
+

@@ -31,7 +31,7 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 PREPROCESSING_DIR = os.path.join(ROOT_DIR, "preprocessing")
 FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
 
-ATLAS_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/analysis/data/anatomical_atlas"
+ATLAS_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/anatomical_atlas"
 
 # Set subjects and sessions
 N_SUBJECTS = 28
@@ -95,36 +95,67 @@ area_dict = {
 }
 
 
+# area_colors = {
+#     'Somatosensory': '#f17126',  # Orange plus intense
+#     'Motor': '#f58640',          # Pêche-orangé plus saturé
+#     'Premotor': '#f7a060',       # Pêche moyen renforcé
+#     'SMA': '#f8b17b',            # Pêche clair avec plus de contraste
+#     'preSMA': '#f9c298',         # Pêche clair, légèrement plus saturé
+    
+#     'Posterior_Insula': '#9de6b5',  # Vert menthe intensifié
+#     'Anterior_Insula': '#82d69b',   # Vert plus saturé
+#     'FOP': '#5ec783',              # Vert moyen plus vif
+    
+#     'mid-VLPFC': '#88c2e3',      # Bleu clair plus intense
+#     'VLPFC_POST': '#5caad7',     # Bleu moyen plus profond
+#     'DLPFC_POST': '#3992cb',     # Bleu plus dense et saturé
+#     'mid-DLPFC': '#0d7ac4',      # Bleu profond plus marqué
+    
+#     'DMPFC': '#c594db',          # Lavande rosé plus vif
+#     'MCCa': '#b475d0',           # Lavande moyen plus saturé
+#     'ACC': '#a055c2',            # Violet plus intense
+    
+#     'VMPFC': '#f290c0',          # Rose plus saturé
+#     'OFC': '#ec6ca9',            # Rose moyen plus vif
+#     'Frontopolar': '#e54994'     # Rose-rouge plus profond
+# }
+
 area_colors = {
-    'Somatosensory': '#f17126',  # Orange plus intense
-    'Motor': '#f58640',          # Pêche-orangé plus saturé
-    'Premotor': '#f7a060',       # Pêche moyen renforcé
-    'SMA': '#f8b17b',            # Pêche clair avec plus de contraste
-    'preSMA': '#f9c298',         # Pêche clair, légèrement plus saturé
+    # Gradient orange-pêche (espacement maximal)
+    'Somatosensory': '#cc3300',  # Rouge-orange très foncé
+    'Motor': '#e64d00',          # Orange foncé
+    'Premotor': '#ff6600',       # Orange vif
+    'SMA': '#ff8040',            # Orange moyen-clair (plus séparé)
+    'preSMA': '#ffb380',         # Orange très clair (bien distinct)
     
-    'Posterior_Insula': '#9de6b5',  # Vert menthe intensifié
-    'Anterior_Insula': '#82d69b',   # Vert plus saturé
-    'FOP': '#5ec783',              # Vert moyen plus vif
+    # Gradient vert (espacement maximal)
+    'Posterior_Insula': '#1a5c2a',  # Vert très foncé
+    'Anterior_Insula': '#2e7a40',   # Vert foncé
+    'FOP': '#80cc99',              # Vert clair (très distinct)
     
-    'mid-VLPFC': '#88c2e3',      # Bleu clair plus intense
-    'VLPFC_POST': '#5caad7',     # Bleu moyen plus profond
-    'DLPFC_POST': '#3992cb',     # Bleu plus dense et saturé
-    'mid-DLPFC': '#0d7ac4',      # Bleu profond plus marqué
+    # Gradient bleu (espacement maximal)
+    'mid-VLPFC': '#0d4d80',      # Bleu très foncé
+    'VLPFC_POST': '#1a66a0',     # Bleu foncé
+    'DLPFC_POST': '#4080cc',     # Bleu moyen-clair (plus séparé)
+    'mid-DLPFC': '#80c0ff',      # Bleu clair (très distinct)
     
-    'DMPFC': '#c594db',          # Lavande rosé plus vif
-    'MCCa': '#b475d0',           # Lavande moyen plus saturé
-    'ACC': '#a055c2',            # Violet plus intense
+    # Gradient violet (espacement maximal)
+    'DMPFC': '#4d1a66',          # Violet très foncé
+    'MCCa': '#7040aa',           # Violet moyen-clair (plus séparé)
+    'ACC': '#b380e6',            # Violet clair (très distinct)
     
-    'VMPFC': '#f290c0',          # Rose plus saturé
-    'OFC': '#ec6ca9',            # Rose moyen plus vif
-    'Frontopolar': '#e54994'     # Rose-rouge plus profond
+    # Gradient rose (espacement maximal)
+    'VMPFC': '#990033',          # Rose très foncé
+    'OFC': '#cc3366',            # Rose moyen
+    'Frontopolar': '#ff80b3'     # Rose clair (très distinct)
 }
 
 palette = sns.color_palette("Dark2")
 stable_color = palette[3]
 partial_color = palette[2]
 complete_color = palette[0]
-palette_dict = {0: partial_color, 1: stable_color, -1: complete_color}
+palette_dict = {0: partial_color, 1: stable_color, -1: complete_color, 
+                'random': "grey", 'global': complete_color, 'overlap': partial_color}
 
 stim_ids = [10, 20, 30, 11, 21, 31, 12, 22, 32]
 
