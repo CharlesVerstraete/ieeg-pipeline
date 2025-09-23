@@ -1,84 +1,172 @@
 # iEEG-Pipeline
 
-Processing pipeline for intracranial EEG (iEEG) data analysis.
+Processing pipeline for intracranial EEG (iEEG) data analysis. It covers complete preprocessing (signal import, event alignment, anatomical localization) and processing (feature extraction, decoding with ridge/SVM, geometry-based analyses, spectral power/phase).
 
-## Overview
+The repository is organized to keep raw/preprocessed data under `data/`, modular preprocessing utilities under `preprocessing/`, and analysis code under `analysis/`.
 
-This project provides tools for importing, processing, and analyzing intracranial EEG data. It handles raw data import from various formats, implements BIDS-compatible organization, and includes specialized tools for anatomical localization, event alignment, artifact detection, and signal preprocessing.
+- Data organization: BIDS-like per subject under `data/sub-XXX/`
+- Code organization: `preprocessing/` (import, alignment, anatomy) and `analysis/` (feature extraction, decoding, group/geometry analyses)
+- Figures and derived outputs: `figures/` and `analysis/decoding_outputs/`
 
-## Features
+Core configuration and constants (paths, sampling, bands) live in [preprocessing/config.py](preprocessing/config.py). Project-wide subject lists, directories, and frequency bands are defined there and are reused across modules.
 
-- Import data from raw TRC, EDF or Nx files to BIDS-compatible format
-- **Comprehensive anatomical processing pipeline:**
-  - Automatic electrode localization from implantation files
-  - Segmentation of gray and white matter
-  - Sulci identification and analysis
-  - Atlas-based parcellation of electrode locations
-  - Generation of both monopolar and bipolar electrode configurations
-  - 3D visualization of electrode placement
-  - Grey/white matter classification of electrode contacts
-- Event detection and alignment between signal and behavioral logs
-- Signal filtering and preprocessing
-- Artifact detection and removal
-- Custom processing for special cases (e.g., analog triggers)
-- Advanced visualization tools for both signal and anatomical data
+Directory snapshot:
+- [preprocessing/](preprocessing/) — import, alignment, anatomy workflows
+- [analysis/](analysis/) — decoding, geometry, group analyses
+- [data/](data/) — subject-level raw and preprocessed outputs
+- [figures/](figures/) — generated visualizations
+- [special_class/](special_class/) — Anatomy classes and visualization helpers
 
-## Anatomical Pipeline
+--------------------------------------------------------------------------------
 
-The anatomical pipeline provides tools for localizing electrodes and analyzing their placement within brain structures:
+## 1) Preprocessing
 
-1. **Anatomical Data Loading**: Process NIfTI files with the `Anatomy` class
-2. **Tissue Segmentation**: Separate gray/white matter and create binary masks
-3. **Sulci Analysis**: Merge and process sulci information from both hemispheres
-4. **Electrode Localization**: Map electrode coordinates to anatomical structures
-5. **Atlas Integration**: Maps electrodes to brain regions using multiple atlases (HCP-MMP1, etc.)
-6. **Bipolar Derivation**: Creation of bipolar contact configurations with anatomical mapping
-7. **Visualization**: Use the `Anatomy_visualisation` class for interactive 3D plotting
+This stage turns raw signals and logs into aligned, anatomically localized, epoched time-frequency data ready for decoding.
+All configuration and constants: [preprocessing/config.py](preprocessing/config.py)
+
+
+Signal processing and visualization:
+- Import and IO
+  - Supported formats: Micromed (.TRC), Neuralynx (.nx), generic (.edf).
+  - Loader consolidates channel metadata (names, sampling rate, units) and reads behavioral logs/events.
+  - Channel renaming/mapping to a consistent convention happens at import. See [preprocessing/import_data.py](preprocessing/import_data.py).
+- Referencing, montage, selection
+  - Bipolar referencing strategy.
+  - Exclusion of non-neural channels (EKG/EMG) and known-noise channels at load time.
+- Line-noise removal and filtering
+  - Zapline method for 50 Hz and harmonics removing (de Cheveigné, A. (2019)).
+  - High-pass (0.5 Hz)
+- Event alignment
+  - Alignment of EEG trigger streams to behavioral logs using Needleman–Wunsch sequence alignment.
+- Epoching
+  - Create epochs around key events (e.g., stimulus onset, feedback).
+  - Attach trial metadata (condition labels, correctness, block/episode indices).
+- Time–frequency decomposition
+  - Multitaper decomposition frequencies and bands from `FREQUENCY_BANDS` (and/or a dense frequency grid).
+  - Outputs per trial × channel × frequency × time:
+    - Power (magnitude-squared), log-transform (dB) and baseline.
+    - Phase (angle).
+
+Persist aligned indices, cleaned continuous data (optional), epoched arrays, and time–frequency tensors under `data/sub-XXX/preprocessed/`.
+
+
+Anatomy processing and visualization:
+
+- [preprocessing/process_anat.py](preprocessing/process_anat.py)
+  - Orchestrates subject-level anatomy workflow:
+    - Contact import
+    - Surface projection and metrics
+    - Atlas labeling
+    - Bipolar coordinates
+- [special_class/Anatomy.py](special_class/Anatomy.py)
+  - Create table from position of the electrodes:
+    - Tree method to map channels location with HCP-MMP1 (Glasser, MF. (2016)).
+    - Bulding unipolar and bipolar tables.
+- [special_class/Anatomy_visualisation.py](special_class/Anatomy_visualisation.py)
+  - Visualization utilities:
+    - Static brain projections (scatter on surface or glass brain with nilearn).
+    - ROI-level summaries.
+
+Outputs (per subject under [data/](data/)):
+- raw/ieeg: raw recordings and events (e.g., `events.tsv`)
+- preprocessed/filtered: denoised/bipolar data
+- preprocessed/aligned: alignment products (indices/mappings between EEG/log/behavior)
+- preprocessed/epochs: trial-aligned epochs (selection/transition tasks)
+- preprocessed/timefreq: time-frequency decompositions used later for power/phase features
+
+--------------------------------------------------------------------------------
+
+## 2) Processing
+
+This stage extracts features (power/phase), runs decoding (ridge regression and SVM classification), aggregates across subjects, performs geometry-based summaries, and supports cross-temporal analyses.
+
+Core modules:
+- Configuration: [analysis/decoding/config.py](analysis/decoding/config.py)
+- Data loaders:
+  - Subject-level: [`analysis.decoding.loader.iEEGDataLoader`](analysis/decoding/loader.py)
+  - Group-level: [`analysis.decoding.loader.GroupLoader`](analysis/decoding/loader.py)
+- Feature extraction:
+  - [`analysis.decoding.process_features.Features`](analysis/decoding/process_features.py) for power bands and phase matrices
+    - Typical output shape for power: (n_trials, n_channels, n_bands, n_timepoints)
+- Decoding:
+  - [`analysis.decoding.decoding.Decoding`](analysis/decoding/decoding.py)
+    - Models: RidgeCV (regression) and Linear SVM (classification)
+    - Pipeline: StandardScaler → Estimator (KFold/StratifiedKFold CV)
+    - Metrics provided (examples): ROC-AUC, F1, Pearson r, MSE
+    - Modalities:
+      - Global: channel-aggregated decoding curves over time
+      - Channel: per-channel decoding curves (for topography and clustering)
+- Orchestration and group analysis:
+  - [`analysis.decoding.decoding_analysis.DecodingAnalysis`](analysis/decoding/decoding_analysis.py) (group-level aggregation, plotting, clustering hooks)
+- Geometry-based analysis:
+  - [`analysis.decoding.geometry.Geometry`](analysis/decoding/geometry.py)
+    - Groups epochs by experimental factors (e.g., `is_stimstable`, `explor_exploit`, `switch_type`)
+    - Aggregates per-group power over channels/frequency bands
+    - Produces matrices for PCA
+- Outputs:
+  - Time-course decoding per variable (global and per-channel)
+  - Cross-decoding matrices across timepoints (per subject and averaged)
+  - Channel clustering based on decoding profiles (e.g., using hierarchical methods in group scripts)
+  - Geometry/PCA summaries by behavior group and frequency bands
+
+--------------------------------------------------------------------------------
 
 ## Directory Structure
 
 ```
-├── preprocessing/
-│   ├── config.py                 # Configuration settings
-│   ├── import_data.py            # Data import pipeline
-│   ├── process_anat.py           # Anatomical processing workflows
-│   ├── utils/
-│   │   ├── data_helper.py        # Helper functions
-│   │   ├── anat_helper.py        # Anatomical processing utilities
-│   │   └── ...
-├── special_class/
-│   ├── Anatomy.py                # Core anatomical processing class
-│   ├── Anatomy_visualisation.py  # Visualization extensions for anatomy
-│   └── ...
-├── data/
-│   ├── sub-XXX/                  # Subject-specific folders
-│   │   ├── raw/
-│   │   │   ├── ieeg/             # Raw iEEG recordings
-│   │   │   ├── anat/             # Anatomical data (NIfTI files)
-│   │   │   └── beh/              # Behavioral data
-│   │   └── preprocessed/
-│   │       ├── aligned/          # Time-aligned data
-│   │       ├── filtered/         # Filtered signals
-│   │       ├── epochs/           # Epoched data
-│   │       └── timefreq/         # Time-frequency analyses
-├── figures/
-│   ├── localisation/             # Electrode localization visualizations
-│   └── ...
+ieeg-pipeline/
+├── preprocessing/                         # Import, alignment, behavior, anatomy workflows
+│   ├── config.py                          # Global paths, subjects, sampling, freq bands
+│   ├── import_data.py                     # Raw import, filtering, epoching, time–frequency
+│   ├── process_anat.py                    # MRI/CT coreg, contact coords, atlas labels, exports
+│   ├── behaviour_analysis.py              # Behavioral summaries and plots (switches, RT, HMM)
+│   └── utils/
+│       ├── beh_helper.py                  # Behavioral feature engineering (persev/explor, criterion)
+│       ├── data_helper.py                 # IO helpers, file listing, subject utilities
+│       └── align_helper.py                # Event sequence alignment (Needleman–Wunsch, helpers)
+│
+├── analysis/                              # Decoding and higher-level analyses
+│   ├── decoding/
+│   │   ├── config.py                      # Decoding-side constants (bands, time windows, CV)
+│   │   ├── loader.py                      # Load aligned features/labels (subject/group)
+│   │   ├── process_features.py            # Build power/phase tensors from time–frequency
+│   │   ├── decoding.py                    # Ridge/SVM pipelines, metrics, cross-decoding
+│   │   ├── decoding_analysis.py           # Aggregation, plotting, clustering orchestration
+│   │   ├── geometry.py                    # Grouped power, PCA-ready matrices, ROI summaries
+│   │   └── group_analysis.py              # Group figures and summaries
+│
+├── special_class/                         # Anatomy classes and visualizations
+│   ├── Anatomy.py                         # Contact/channel table, transforms, ROI filtering
+│   └── Anatomy_visualisation.py           # Brain scatter, ROI plots, metrics overlays
+│
+├── data/                                  # Per-subject data (BIDS-like, raw → preprocessed)
+│   ├── sub-XXX/                           # Subject folders
+│   │   ├── raw/ieeg                       # Raw EEG and events
+│   │   └── preprocessed/                  # Filtered, aligned, epochs, timefreq, anat
+│   └── ...                                # Additional subjects
+│
+├── figures/                               # Generated figures (behavior, decoding, anatomy)
+│   ├── behaviour/                         # Behavioral plots (switch, persev/explor, etc.)
+│   ├── decoding/                          # Decoding curves, cross-temporal matrices, clusters
+│   └── anatomy/                           # Brain plots, ROI summaries
+│
+│
 └── README.md
 ```
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 ## Requirements
 
 - Python 3.9+
-- NumPy
-- Pandas
-- MNE
-- Neo
-- SciPy
-- Matplotlib
-- Nibabel (for NIfTI file processing)
-- Nilearn (for visualization)
+- NumPy, SciPy, Pandas
+- MNE, Neo
+- Matplotlib, Seaborn
+- Nibabel, Nilearn (anatomy/visualization)
+
+--------------------------------------------------------------------------------
 
 ## Contact
 
-charles.vrst@gmail.com
+verstraetecarlito@gmail.com

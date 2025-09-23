@@ -111,11 +111,38 @@ def get_df(fileslist, rt_zscore=False, filter=False, add_prev=False):
             tmp_df = add_before_trial(tmp_df)
             tmp_df = tmp_df.reset_index(drop=True)
         tmp_df = recount_trials(tmp_df)
+        tmp_df = recount_trial_switch(tmp_df)
         df_list.append(tmp_df)
 
     df = pd.concat(df_list, ignore_index=True)
     return df
 
+def recount_trial_switch(df):
+    df = df.copy().reset_index(drop=True)
+    trials = []
+    stim_pres_count = np.zeros(3, dtype=int)
+    stim_pres = []
+    first_switch = False
+    for _, row in df.iterrows():
+        if not first_switch:
+            first_switch = row["firstswitch"] == 1
+        if first_switch :
+            if row["firstswitch"] == 1 :
+                stim_pres_count[:] = 0
+                trials.append(1)
+                stim_pres_count[int(row["stim"]) - 1] += 1
+                stim_pres.append(stim_pres_count[int(row["stim"]) - 1])
+            else:
+                trials.append(trials[-1] + 1)
+                stim_pres_count[int(row["stim"]) - 1] += 1
+                stim_pres.append(stim_pres_count[int(row["stim"]) - 1])
+        else :
+            trials.append(0)
+            stim_pres.append(0)
+    
+    df["post_hmmsw_trial"] = trials
+    df["post_hmmsw_pres"] = stim_pres
+    return df
 
 def recount_trials(df):
     df = df.copy().reset_index(drop=True)

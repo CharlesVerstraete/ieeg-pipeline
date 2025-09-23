@@ -134,15 +134,13 @@ plot_around_switch(
 
 
 
-
-
 x_var_pre = "pre_hmmsw_pres"
 x_var_post = "post_hmmsw_pres"
 keys = ["random", "global", "overlap"]
 
 
 y_var = "correct"
-file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
 summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
@@ -151,21 +149,71 @@ plot_around_switch(
 )
 
 y_var = "explor"
-file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
-summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "switch_type", "switch_type")
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
     hue_pre="switch_type", hue_post="switch_type", ylim=(0, 0.5), ylabel="Proportion exploration",
-    keys=keys, palette=palette_dict, xticks=np.arange(-4, 16, 2), save_path=file_path
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
 )
 
 y_var = "persev"
-file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
-summary_after, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "switch_type", "switch_type")
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
     hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), ylabel="Proportion perseveration",
-    keys=keys, palette=palette_dict, xticks=np.arange(-4, 16, 2), save_path=file_path
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
+
+
+
+
+x_var_pre = "pre_hmmsw_trial"
+x_var_post = "post_hmmsw_trial"
+
+y_var = "correct"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), save_path=file_path,
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2)
+)
+
+y_var = "explor"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 0.5), ylabel="Proportion exploration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path,
+)
+
+y_var = "persev"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), ylabel="Proportion perseveration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path,
+)
+
+
+
+
+
+x_var_pre = "pre_hmmsw_pres"
+x_var_post = "post_hmmsw_pres"
+keys = ["random", "global", "overlap"]
+
+
+y_var = "rt_zscore"
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -4, 13, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(-.5, .5), ylabel="Proportion perseveration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2)
 )
 
 
@@ -174,11 +222,7 @@ plot_around_switch(
 
 
 
-
-
-
-
-
+switch_type_count = filtered_df[filtered_df["firstswitch"] == 1].groupby(["subject", "is_partial", "switch_type"]).size()
 
 
 
