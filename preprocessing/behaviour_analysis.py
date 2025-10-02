@@ -17,10 +17,15 @@ from preprocessing.utils.plot_helper import *
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 # matplotlib.use('Qt5Agg')
 plt.style.use('seaborn-v0_8-poster') 
 
+
+##############################################################################################################################
+##############################################################################################################################
+# Load data
 
 BEH_PATH = "/Users/charles.verstraete/Documents/w3_iEEG/behaviour/hmm"
 fileslist = get_fileslist(BEH_PATH, ".csv")
@@ -33,9 +38,14 @@ plot_indiv_lineplot(df, "stim_pres", "correct", xlim=15, chance=0.33, ylim=(0, 1
 plot_indiv_histplot(df, ["subject", "epis"])
 
 
+
+##############################################################################################################################
+##############################################################################################################################
+# Filter bad episodes
+
+
 epis_count_complete = df_test.groupby(["subject", "epis"]).size().reset_index(name="count")
 plot_boxplot(epis_count_complete, "subject", "count", hue_var="subject")
-
 
 epis_count, removed_episodes, synthese_removed = filter_episodes(epis_count_complete, min_count=15, max_count=55)
 
@@ -56,10 +66,39 @@ plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post, xticks=np.arange(-6, 16, 2), avr_line=avr_perf,
 )
 
-
 filtered_df = df_test.merge(epis_count, on=["subject", "epis"], how="right")
 filtered_df = filtered_df[filtered_df["criterion"] == 0].copy().reset_index(drop=True)
 
+test = filtered_df[filtered_df["rule"] == filtered_df["hmm_strat"]]
+test_first = test.groupby(["subject", "epis"])["trial"].min().reset_index()
+
+
+test_count = test_first.groupby("trial").size().reset_index(name="count")
+
+sns.barplot(data=test_count, x="trial", y="count", color="blue", alpha=0.5)
+plt.show()
+
+
+test_random = filtered_df[filtered_df["hmm_strat"] == 28]
+x_var_pre = "pre_hmmsw_pres"
+x_var_post = "post_hmmsw_pres"
+y_var = "rt_zscore"
+
+summary_before, summary_after = get_switch_summary(test_random, x_var_pre, x_var_post, y_var, -6, 9)
+avr_rt = filtered_df[filtered_df["fb_prev"] == 1]["rt_zscore"].mean()
+
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post, avr_line=avr_rt,
+     ylim=(-0.7, 0.7), palette=palette_dict, xticks=np.arange(-4, 16, 2)
+)
+
+
+
+
+##############################################################################################################################
+##############################################################################################################################
+### Plots around rules changes
+## Stimulus presentation
 
 figures_beh_path = os.path.join(FIGURES_DIR, "behaviour")
 
@@ -67,38 +106,61 @@ x_var_pre = "before_pres"
 x_var_post = "stim_pres"
 keys = [-1, 0, 1]
 
+handles = [Patch(facecolor=palette_dict[k], edgecolor="none", label=str(l)) for k, l in zip(keys, ["Complete", "Partial", "Stable"])]
+ncol = len(handles)
+fig, ax = plt.subplots(figsize=(10, 1))
+ax.axis("off")
+leg = ax.legend(handles=handles, loc="center", frameon=False, ncol=ncol, fontsize=26)
+leg.set_title("Legend", prop={"size": 26})
+plt.tight_layout()
+plt.savefig(os.path.join(figures_beh_path, "legend_beh.pdf"), transparent=True, format='pdf', bbox_inches='tight')
+plt.show()
+
+# Performances 
+
 y_var = "correct"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
-summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "is_stimstable", "is_stimstable")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "next_stable", "is_stimstable")
 avr_perf = summary_before[summary_before[x_var_pre] > -4]["mean"].mean()
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="is_stimstable", hue_post="is_stimstable", avr_line=avr_perf, ylim=(0, 1),
+    hue_pre="next_stable", hue_post="is_stimstable", avr_line=avr_perf, ylim=(0, 1),
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 16, 2), save_path=file_path
 )
+
+# Exploration
 
 y_var = "explor"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
-summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "is_stimstable", "is_stimstable")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "next_stable", "is_stimstable")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 0.5), ylabel="Proportion exploration",
+    hue_pre="next_stable", hue_post="is_stimstable", ylim=(0, 0.5), ylabel="Proportion exploration",
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 16, 2), save_path=file_path
 )
+
+# Perseveration
 
 y_var = "persev"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
-summary_before, _ = get_switch_summary(filtered_df, x_var_pre, x_var_post, "correct", -5, 15, "is_stimstable", "is_stimstable")
-_, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "is_stimstable", "is_stimstable")
+summary_before, _ = get_switch_summary(filtered_df, x_var_pre, x_var_post, "correct", -5, 15, "next_stable", "is_stimstable")
+_, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 15, "next_stable", "is_stimstable")
 avr_perf = summary_before[summary_before[x_var_pre] > -4]["mean"].mean()
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="is_stimstable", hue_post="is_stimstable", avr_line=avr_perf, ylim=(0, 1), ylabel="Proportion perseveration",
+    hue_pre="next_stable", hue_post="is_stimstable", avr_line=avr_perf, ylim=(0, 1), ylabel="Proportion perseveration",
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 16, 2), save_path=file_path
 )
 
+
+##############################################################################################################################
+## Trial
+
 x_var_pre = "before_trial"
 x_var_post = "trial"
+
+
+# Performances
 
 y_var = "correct"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
@@ -110,6 +172,8 @@ plot_around_switch(
     ylabel = "Proportion correct", keys=keys, palette=palette_dict, xticks=np.arange(-15, 46, 5), save_path=file_path
 )
 
+# Exploration
+
 y_var = "explor"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
 summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -15, 45, "is_stimstable", "is_stimstable")
@@ -118,6 +182,8 @@ plot_around_switch(
     hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 0.5), xlabel="Trial",
     ylabel = "Proportion exploration", keys=keys, palette=palette_dict, xticks=np.arange(-15, 46, 5), save_path=file_path
 )
+
+# Perseveration
 
 y_var = "persev"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_rule_{y_var}.pdf")
@@ -130,14 +196,26 @@ plot_around_switch(
     ylabel = "Proportion perseveration", keys=keys, palette=palette_dict, xticks=np.arange(-15, 46, 5), save_path=file_path
 )
 
-
-
-
+##############################################################################################################################
+##############################################################################################################################
+### Plots around HMM switches (HMM classification)
+## Stimulus presentation
 
 x_var_pre = "pre_hmmsw_pres"
 x_var_post = "post_hmmsw_pres"
 keys = ["random", "global", "overlap"]
 
+handles = [Patch(facecolor=palette_dict[k], edgecolor="none", label=str(k)) for k in keys]
+ncol = len(handles)
+fig, ax = plt.subplots(figsize=(10, 1))
+ax.axis("off")
+leg = ax.legend(handles=handles, loc="center", frameon=False, ncol=ncol, fontsize=26)
+leg.set_title("Legend", prop={"size": 26})
+plt.tight_layout()
+plt.savefig(os.path.join(figures_beh_path, "legend_hmm.pdf"), transparent=True, format='pdf', bbox_inches='tight')
+plt.show()
+
+# Performances
 
 y_var = "correct"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
@@ -148,14 +226,18 @@ plot_around_switch(
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
 )
 
+# Exploration
+
 y_var = "explor"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
 summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 0.5), ylabel="Proportion exploration",
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 0.6), ylabel="Proportion exploration",
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
 )
+
+# Perseveration
 
 y_var = "persev"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
@@ -166,29 +248,47 @@ plot_around_switch(
     keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
 )
 
+# Reaction times
+
+y_var = "rt_zscore"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(-.5, .5), ylabel="Reaction time z-score",
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
 
 
+##############################################################################################################################
+## Trial
 
 x_var_pre = "pre_hmmsw_trial"
 x_var_post = "post_hmmsw_trial"
+
+# Performances
 
 y_var = "correct"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
 summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), save_path=file_path,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), save_path=file_path, xlabel="Trial",
     keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2)
 )
+
+# Exploration
 
 y_var = "explor"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
 summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 0.5), ylabel="Proportion exploration",
-    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), ylabel="Proportion exploration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
 )
+
+# Perseveration
 
 y_var = "persev"
 file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
@@ -196,8 +296,251 @@ summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var
 plot_around_switch(
     summary_before, summary_after, x_var_pre, x_var_post,
     hue_pre="switch_type", hue_post="switch_type", ylim=(0, 1), ylabel="Proportion perseveration",
-    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path,
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
 )
+
+# Reaction times
+
+y_var = "rt_zscore"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "switch_type", "switch_type")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="switch_type", hue_post="switch_type", ylim=(-.5, .5), ylabel="Reaction time z-score",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
+)
+
+
+##############################################################################################################################
+# Plots around HMM switches (task truth)
+
+
+x_var_pre = "pre_hmmsw_pres"
+x_var_post = "post_hmmsw_pres"
+keys = [-1, 0, 1]
+
+# Performances
+
+y_var = "correct"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 1),
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
+
+# Exploration
+
+y_var = "explor"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 0.6), ylabel="Proportion exploration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
+
+# Perseveration
+
+y_var = "persev"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 1), ylabel="Proportion perseveration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
+
+# Reaction times
+
+y_var = "rt_zscore"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -5, 7, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(-.5, .5), ylabel="Reaction time z-score",
+    keys=keys, palette=palette_dict, xticks=np.arange(-4, 8, 2), save_path=file_path
+)
+
+##############################################################################################################################
+## Trial
+
+x_var_pre = "pre_hmmsw_trial"
+x_var_post = "post_hmmsw_trial"
+
+# Performances
+
+y_var = "correct"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 1), save_path=file_path, xlabel="Trial",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2)
+)
+
+# Exploration
+
+y_var = "explor"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 1), ylabel="Proportion exploration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
+)
+
+# Perseveration
+
+y_var = "persev"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(0, 1), ylabel="Proportion perseveration",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
+)
+
+# Reaction times
+
+y_var = "rt_zscore"
+file_path = os.path.join(figures_beh_path, f"{x_var_post}_switch_{y_var}_rule.pdf")
+summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -7, 13, "is_stimstable", "is_stimstable")
+plot_around_switch(
+    summary_before, summary_after, x_var_pre, x_var_post,
+    hue_pre="is_stimstable", hue_post="is_stimstable", ylim=(-.5, .5), ylabel="Reaction time z-score",
+    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2), save_path=file_path, xlabel="Trial",
+)
+
+
+##############################################################################################################################
+##############################################################################################################################
+# Summary of switches proportions and delays
+
+switch_type_count_indiv = filtered_df[filtered_df["firstswitch"] == 1]
+
+count_transition = switch_type_count_indiv.groupby(["switch_type", "is_partial", "subject"]).size().reset_index(name = "count")
+count_transition["proportion"] = count_transition["count"] / count_transition.groupby(["is_partial", "subject"])["count"].transform("sum")
+summary = count_transition.groupby(["switch_type", "is_partial"], dropna=False)["proportion"].agg(["mean", "std", "count"]).reset_index()
+summary["sem"] = summary["std"] / np.sqrt(summary["count"])
+
+switches = summary["switch_type"].unique()
+x = np.arange(len(switches))  # the label locations
+width = 0.25  # the width of the bars
+multiplier = 0
+fig, ax = plt.subplots(layout='constrained')
+for attribute, measurement in summary.groupby("is_partial"):
+    offset = width * multiplier
+    color = [complete_color, partial_color][attribute]
+    label = ["Complete", "Partial"][attribute]
+    rects = ax.bar(x + offset, measurement["mean"], width, yerr=measurement["sem"], label=label, color=color)
+ax.set_ylabel('Proportion of switches')
+ax.set_xticks(x + width/2, switches)
+ax.legend(loc='upper left', ncols=3)
+plt.savefig(os.path.join(FIGURES_DIR, "behaviour", "hmm_switch_prop.pdf"), transparent=True, format='pdf', bbox_inches='tight')
+plt.show()
+
+
+
+first_delay = switch_type_count_indiv.groupby(["epis", "subject"])["stim_pres"].agg(["mean", "count"]).reset_index().rename(columns={"mean": "stim_pres"})
+first_delay_sum = first_delay.groupby(["subject" ,"stim_pres"])["count"].sum().reset_index()
+first_delay_sum["proportion"] = first_delay_sum["count"] / first_delay_sum.groupby("subject")["count"].transform("sum")
+
+first_delay_proportion = first_delay_sum.groupby("stim_pres")["proportion"].agg(["mean", "std", "count"]).reset_index()
+first_delay_proportion["sem"] = first_delay_proportion["std"] / np.sqrt(first_delay_proportion["count"])
+
+first_delay_count = first_delay_sum.groupby("stim_pres")["count"].agg(["mean", "std", "count"]).reset_index()
+first_delay_count["sem"] = first_delay_count["std"] / np.sqrt(first_delay_count["count"])
+
+first_delay_count = first_delay_count[first_delay_count["stim_pres"] < 7]
+first_delay_proportion = first_delay_proportion[first_delay_proportion["stim_pres"] < 7]
+
+fig, axs = plt.subplots(2, 1, figsize=(8, 10), sharex=True)
+
+axs[0].plot(first_delay_proportion["stim_pres"], first_delay_proportion["mean"], color="black")
+axs[0].fill_between(first_delay_proportion["stim_pres"], first_delay_proportion["mean"] - first_delay_proportion["sem"], first_delay_proportion["mean"] + first_delay_proportion["sem"], color="grey", alpha=0.5)
+axs[0].set_ylabel("Proportion of first switches")
+axs[0].set_ylim(0, 0.8)
+
+axs[1].plot(first_delay_count["stim_pres"], first_delay_count["mean"], color="black")
+axs[1].fill_between(first_delay_count["stim_pres"], first_delay_count["mean"] - first_delay_count["sem"], first_delay_count["mean"] + first_delay_count["sem"], color="grey", alpha=0.5)
+axs[1].set_ylabel("Count of first switches")
+axs[1].set_xlabel("Stimulus presentation")
+axs[1].set_ylim(0, 20)
+
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, "behaviour", "hmm_switch_delay_stimpres.pdf"), transparent=True, format='pdf', bbox_inches='tight')
+plt.show()
+
+
+###############################################################################################################################
+# Reaction times around HMM switches 
+
+pre = filtered_df.groupby(["pre_hmmsw_trial", "is_stimstable", "switch_type"], dropna=False)["rt_zscore"].agg(["mean", "std", "count"]).reset_index()
+post = filtered_df.groupby(["post_hmmsw_trial", "is_stimstable", "switch_type"], dropna=False)["rt_zscore"].agg(["mean", "std", "count"]).reset_index()
+pre = pre[(pre["pre_hmmsw_trial"] < 0) & (pre["pre_hmmsw_trial"] > -3)]
+post = post[(post["post_hmmsw_trial"] > 0) & (post["post_hmmsw_trial"] < 7)]
+pre["sem"] = pre["std"] / np.sqrt(pre["count"])
+post["sem"] = post["std"] / np.sqrt(post["count"])
+pre.rename(columns={"pre_hmmsw_trial": "trial"}, inplace=True)
+post.rename(columns={"post_hmmsw_trial": "trial"}, inplace=True)
+joined_df = pd.concat([pre, post], axis=0)
+
+
+fig, axs = plt.subplots(3, 3, figsize=(21, 12), sharex=True, sharey=True)
+axs = axs.flatten()
+for i, ((switch, is_stable), grp) in enumerate(joined_df.groupby(["switch_type", "is_stimstable"])):
+    axs[i].bar(grp["trial"], grp["mean"], label=f"{switch}_{is_stable}", color=palette_dict[is_stable])
+    axs[i].set_facecolor(list(palette_dict[switch])+[0.3])
+    axs[i].errorbar(grp["trial"], grp["mean"], yerr=grp["sem"], fmt="none", c="black")
+    axs[i].axhline(y=0, color="dimgrey", linestyle="--", linewidth=0.5)
+    axs[i].axvline(x=0, color="red", linestyle="-", linewidth=2)
+    axs[i].set_title(f"Switch: {switch}, Stable: {is_stable}")
+
+for i in range(3):
+    axs[i*3].set_ylabel("Reaction time z-score")
+    axs[8-i].set_xlabel("Trial")
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, "behaviour", "hmm_switch_rt.pdf"), transparent=False, format='pdf', bbox_inches='tight')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plt.figure(figsize=(8, 6))
+plt.bar(summary["switch_type"], summary["mean"], yerr=summary["sem"], color=[complete_color, partial_color]*3, alpha=0.5)
+plt.show()
+
+
+
+
+
+
+plt.figure(figsize=(13, 10))
+sns.barplot(data=count_transition, x = "switch_type", y = "proportion", hue="is_partial", palette = [complete_color, partial_color], alpha=0.5)
+sns.stripplot(data=count_transition, x = "switch_type", y = "proportion", hue="is_partial", palette = [complete_color, partial_color], dodge=True, alpha=0.8, legend=False)
+plt.savefig(os.path.join(FIGURES_DIR, "behaviour", "hmm_switch_prop.pdf"), transparent=True, format='pdf', bbox_inches='tight')
+plt.show()
+
+
+
+
+
+
+
+
 
 
 
@@ -206,15 +549,45 @@ plot_around_switch(
 x_var_pre = "pre_hmmsw_pres"
 x_var_post = "post_hmmsw_pres"
 keys = ["random", "global", "overlap"]
+keys = [-1, 0, 1]
 
 
-y_var = "rt_zscore"
-summary_before, summary_after = get_switch_summary(filtered_df, x_var_pre, x_var_post, y_var, -4, 13, "switch_type", "switch_type")
-plot_around_switch(
-    summary_before, summary_after, x_var_pre, x_var_post,
-    hue_pre="switch_type", hue_post="switch_type", ylim=(-.5, .5), ylabel="Proportion perseveration",
-    keys=keys, palette=palette_dict, xticks=np.arange(-6, 13, 2)
-)
+
+
+
+
+
+
+
+
+
+
+switch_type_count_indiv = filtered_df[filtered_df["firstswitch"] == 1].groupby(["is_partial", "switch_type"]).size().reset_index(name="count")
+switch_type_count_indiv
+summ = switch_type_count_indiv.groupby(["is_partial", "switch_type"], dropna=False)["count"].agg(["sum", "std", "count"]).reset_index()
+summ
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

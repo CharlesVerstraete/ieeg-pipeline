@@ -91,8 +91,8 @@ def get_df(fileslist, rt_zscore=False, filter=False, add_prev=False):
     df_list = []
     for file in fileslist:
         tmp_df = pd.read_csv(file)
-        tmp_df["trial_count"] = np.arange(1, len(tmp_df) + 1, dtype=int)
-        tmp_df = add_persev_explor(tmp_df)
+        # tmp_df["trial_count"] = np.arange(1, len(tmp_df) + 1, dtype=int)
+        # tmp_df = add_persev_explor(tmp_df)
         tmp_df = find_criterion(tmp_df)
         tmp_df = tmp_df[tmp_df["criterion"] == 0].reset_index(drop=True)
         if rt_zscore and "rt" in tmp_df.columns:
@@ -251,10 +251,8 @@ def find_criterion(df) :
         finished_episode = post_perf > 5
 
         # Marque criterion au premier essai post-critère
-        df.at[i, "criterion"] = (post_perf == 1)
-        if i > 1 and df.at[i, "criterion"]:
+        if i > 1 and (post_perf == 1):
             df.at[i - 1, "criterion"] = df.at[i, "criterion"]
-            df.at[i - 2, "criterion"] = df.at[i, "criterion"]
 
         df.at[i, "post_criterion"] = int(post_perf)
         df.at[i, "finished"] = bool(finished_episode)
@@ -332,8 +330,9 @@ def mean_sem(df, x, y, hue=None, within="subject"):
         summ = indiv.groupby(cols, dropna=False)[y].agg(["mean", "std", "count"]).reset_index()
     else:
         summ = df.groupby(cols, dropna=False)[y].agg(["mean", "std", "count"]).reset_index()
-    summ["sem"] = summ["std"] / np.sqrt(summ["count"].clip(lower=1))
+    summ["sem"] = summ["std"] / np.sqrt(summ["count"])
     return summ
+
 
 def get_switch_summary(df, x_pre, x_post, y_var, pre_lim, post_lim, hue_pre = None, hue_post = None, within="subject"):
     """
@@ -347,3 +346,5 @@ def get_switch_summary(df, x_pre, x_post, y_var, pre_lim, post_lim, hue_pre = No
     summary_before = summary_before[(summary_before[x_pre] < 0) & (summary_before[x_pre] > pre_lim)]
 
     return summary_before, summary_after
+
+

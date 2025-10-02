@@ -268,7 +268,7 @@ def format_events(events):
 
 def get_triplet_eventsdf(subject): 
     """
-    
+    Get the events dataframe from the subject
     """
     signal_events_df = get_complete_events(subject)
     clean_signal_events = clean_eventdf(signal_events_df)
@@ -288,7 +288,7 @@ def get_triplet_eventsdf(subject):
 
 def create_alignseq(log_events, signal_events, beh_events): 
     """
-    
+    Create the aligned sequences from the log, signal and behavioral events        
     """
     format_log_events = format_events(log_events["value"].values)
     format_eeg_events = format_events(signal_events["value"].values)

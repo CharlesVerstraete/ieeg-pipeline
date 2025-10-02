@@ -1,0 +1,169 @@
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Tous les jobs sont lancés.
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Tous les jobs sont lancés.
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Tous les jobs sont lancés.
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+./inference_launcher.sh : ligne 20 : 2953564 Erreur de segmentation  (core dumped) nohup taskset -c ${start_core}-${end_core} julia --threads $cores_per_subject /home/cverstraete/ieeg_stratinf_analysis/v2/behaviour/inference.jl > "${log_file}" 2>&1
+./inference_launcher.sh : ligne 20 : 2953568 Erreur de segmentation  (core dumped) nohup taskset -c ${start_core}-${end_core} julia --threads $cores_per_subject /home/cverstraete/ieeg_stratinf_analysis/v2/behaviour/inference.jl > "${log_file}" 2>&1
+Tous les jobs sont lancés.
+Launching subject 3 on cores 80-87
+Launching subject 9 on cores 88-95
+Launching subject 2 on cores 0-7
+Launching subject 4 on cores 8-15
+Launching subject 5 on cores 16-23
+Launching subject 14 on cores 24-31
+Launching subject 20 on cores 32-39
+Launching subject 23 on cores 40-47
+Launching subject 25 on cores 48-55
+Tous les jobs sont lancés.
+Launching subject 2 on cores 0-7
+Launching subject 4 on cores 8-15
+Launching subject 5 on cores 16-23
+Launching subject 14 on cores 24-31
+Launching subject 20 on cores 32-39
+Launching subject 23 on cores 40-47
+Launching subject 25 on cores 48-55
+Tous les jobs sont lancés.
+Launching subject 2 on cores 0-7
+Tous les jobs sont lancés.
+Launching subject 4 on cores 8-15
+Launching subject 5 on cores 16-23
+Launching subject 14 on cores 24-31
+Launching subject 20 on cores 32-39
+Launching subject 23 on cores 40-47
+Launching subject 25 on cores 48-55
+Launching subject 2 on cores 0-7
+Launching subject 3 on cores 8-15
+Launching subject 4 on cores 16-23
+Launching subject 5 on cores 24-31
+Launching subject 8 on cores 32-39
+Launching subject 9 on cores 40-47
+Launching subject 12 on cores 48-55
+Launching subject 14 on cores 56-63
+Launching subject 16 on cores 64-71
+Launching subject 19 on cores 72-79
+Launching subject 20 on cores 80-87
+Launching subject 23 on cores 88-95
+Launching subject 25 on cores 96-103
+Launching subject 28 on cores 104-111
+./inference_launcher.sh : ligne 20 : 3005814 Erreur de segmentation  (core dumped) nohup taskset -c ${start_core}-${end_core} julia --threads $cores_per_subject /home/cverstraete/ieeg_stratinf_analysis/v2/behaviour/inference.jl > "${log_file}" 2>&1
+Tous les jobs sont lancés.
+Launching subject  on cores 0-7
+Tous les jobs sont lancés.
+Launching subject 3 on cores 0-7
+./inference_launcher.sh: 3: Syntax error: "(" unexpected
+./inference_launcher.sh: 3: Syntax error: "(" unexpected
+Launching subject 2 on cores 8-15
+Launching subject 3 on cores 16-23
+Launching subject 4 on cores 24-31
+Launching subject 5 on cores 32-39
+Launching subject 8 on cores 40-47
+Launching subject 9 on cores 48-55
+Launching subject 12 on cores 56-63
+Launching subject 14 on cores 64-71
+Launching subject 16 on cores 72-79
+Launching subject 19 on cores 80-87
+Launching subject 20 on cores 88-95
+Launching subject 23 on cores 96-103
+Launching subject 25 on cores 104-111
+Tous les jobs sont lancés.
+Launching subject 28 on cores 8-15
+Tous les jobs sont lancés.
+Launching subject 28 on cores 0-7
+Tous les jobs sont lancés.

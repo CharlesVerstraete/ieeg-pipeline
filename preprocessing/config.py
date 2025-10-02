@@ -154,8 +154,12 @@ palette = sns.color_palette("Dark2")
 stable_color = palette[3]
 partial_color = palette[2]
 complete_color = palette[0]
+# palette_dict = {0: partial_color, 1: stable_color, -1: complete_color, 
+#                 'random': (0.5, 0.5, 0.5), 'global': complete_color, 'overlap': partial_color}
+
 palette_dict = {0: partial_color, 1: stable_color, -1: complete_color, 
-                'random': "grey", 'global': complete_color, 'overlap': partial_color}
+                'random': (0.5, 0.5, 0.5), 'global': (0.835, 0.369, 0.000), 'overlap': (0.337, 0.706, 0.914)}
+
 
 stim_ids = [10, 20, 30, 11, 21, 31, 12, 22, 32]
 

@@ -14,18 +14,18 @@ import json
 from tqdm import tqdm
 
 
-subject = 14
+# subject = 14
 
-ch_names = epochs.info["ch_names"]
-sfreq = epochs.info["sfreq"]
+# ch_names = epochs.info["ch_names"]
+# sfreq = epochs.info["sfreq"]
 
-n_epochs = len(epochs)
-n_channels = len(ch_names)
+# n_epochs = len(epochs)
+# n_channels = len(ch_names)
 
-power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-power.npy")
-phase_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-phase.npy")
+# power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-power.npy")
+# phase_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-phase.npy")
 
-power_complete = np.memmap(power_path, dtype = 'float16',mode = 'w+', shape = (n_epochs, n_channels, n_freqs, n_times_decimed))
+# power_complete = np.memmap(power_path, dtype = 'float16',mode = 'w+', shape = (n_epochs, n_channels, n_freqs, n_times_decimed))
 
 # for subject in SUBJECTS:
 # metadata_path =  os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "epochs", f"sub-{int(subject):03}_meta-data.json")
@@ -44,8 +44,8 @@ power_complete = np.memmap(power_path, dtype = 'float16',mode = 'w+', shape = (n
 
 
 # subject = SUBJECTS[3]
-# for subject in SUBJECTS[7:]:
-subject = 2
+for subject in SUBJECTS[7:]:
+# subject = 2
     print(f"Processing subject {subject}")
     epochs_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "epochs", f"sub-{int(subject):03}_ieeg-epochs.fif")
     epochs = mne.read_epochs(epochs_path, preload = True, verbose='error')
