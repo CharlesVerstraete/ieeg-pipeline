@@ -54,53 +54,55 @@ function initialize_switch_columns!(df::DataFrame)
     df.randomsw_type .= ""
 end
 
-function forward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choice::Int, explor_choice::Int, current_strat::Int)
+function forward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choicse::Int, current_strat::Int, switch_type::String)
     j = switch_idx
     counter_stim = zeros(Int, 3)
     trial_counter = 0
     trial_colname = string(colname, "_trial")
     pres_colname = string(colname, "_pres")
+    type_colname = string(colname, "_type")
     while (minimum(counter_stim) < 8) && (j < nrow(df)) && (df[j, :hmm_strat] == current_strat)
         counter_stim[df[j, :stim]] += 1
         df[j, pres_colname] = counter_stim[df[j, :stim]]
         trial_counter += 1
         df[j, trial_colname] = trial_counter
-        df[j, :persev_hmm] = persev_choice == df[j, :choice]
-        df[j, :explor_hmm] = explor_choice == df[j, :choice]
+        df[j, :persev_hmm] = persev_choices[df[j, :stim]] == df[j, :choice]
+        df[j, :explor_hmm] = df[j, :choice] ∈ explor_choice
+        df[j, type_colname] = switch_type
         j += 1
     end
-    return df, j, trial_counter
 end
 
-function backward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choice::Int, explor_choice::Int, prev_strat::Int)
+function backward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choices::Int, prev_strat::Int, switch_type::String)
     i = switch_idx - 1
     counter_stim = zeros(Int, 3)
     trial_counter = 0
     trial_colname = string(colname, "_trial")
     pres_colname = string(colname, "_pres")
+    type_colname = string(colname, "_type")
     while (abs(minimum(counter_stim)) < 8) && (i > 0) && (df[i, :hmm_strat] == prev_strat)
         counter_stim[df[i, :stim]] -= 1
         df[i, pres_colname] = counter_stim[df[i, :stim]]
         trial_counter += 1
         df[i, trial_colname] = -trial_counter
-        df[i, :persev_hmm] = persev_choice == df[i, :choice]
-        df[i, :explor_hmm] = explor_choice == df[i, :choice]
+        df[i, :persev_hmm] = persev_choices[df[i, :stim]] == df[i, :choice]
+        explor = [(filter!(e -> !(e in [a,b]), [1,2,3])) for (a,b) in zip(df.persev_choice,  df.correct_choice)]
+        df[i, :explor_hmm] = df[i, :choice] ∈ explor_choice
+        df[i, type_colname] = switch_type
         i -= 1
     end
-    return df, i, trial_counter
 end
-    
-function around_switch_counts!(df::DataFrame, switch_idx::Int, colname::String)
+
+function around_switch_counts!(df::DataFrame, switch_idx::Int, colname::String, switch_type::String, persev_choices::Vector{Int64})
     current_strat = df[switch_idx, :hmm_strat]
     if switch_idx > 1
         prev_strat = df[switch_idx-1, :hmm_strat]
     else
         prev_strat = -1
     end
-    persev_choice = df[switch_idx, :persev_choice]
-    explor_choice = df[switch_idx, :explor_choice]
-    df, j, trial_counter = forward_counters!(df, switch_idx, colname, persev_choice, explor_choice, current_strat)
-    df, i, trial_counter = backward_counters!(df, switch_idx, colname, persev_choice, explor_choice, prev_strat)
+    # explor_choice = df[switch_idx, :explor_choice]
+    forward_counters!(df, switch_idx, colname, persev_choices, current_strat, switch_type)
+    backward_counters!(df, switch_idx, colname, persev_choices, prev_strat, switch_type)
 end
 
 
@@ -110,21 +112,22 @@ function process_switch!(df::DataFrame)
     firstsw = false
     goodsw = false
     switch_counters = 0
-
+    active_rule = Array(df[:, 1:3])
     for idx in 2:nrow(df)
         if df.trial[idx] == 1
             switch_counters = 0
             firstsw = false
             goodsw = false
+            persev_choices = active_rule[idx - 1, :]
         end
         if !firstsw && df.hmm_switch[idx] == 1
             firstsw = true
             df.firstswitch[idx] = 1
             df.time_firstswitch[idx] = df.trial[idx]
             switch_counters += 1
-            around_switch_counts!(df, idx, "firstsw")
+            switch_type = SWITCH_TYPES[HTRANS[df.hmm_strat[idx-1], df.hmm_strat[idx]]]
+            around_switch_counts!(df, idx, "firstsw", switch_type, persev_choices)
             df.switch_count[idx] = switch_counters[1]
-            df.firstsw_type[idx] = SWITCH_TYPES[HTRANS[df.hmm_strat[idx-1], df.hmm_strat[idx]]]
         elseif df.hmm_switch[idx] == 1
             switch_counters += 1
             df.switch_count[idx] = switch_counters
@@ -134,13 +137,12 @@ function process_switch!(df::DataFrame)
             goodsw = true
             df.time_goodswitch[idx] = df.trial[idx]
             df.goodswitch[idx] = 1
-            around_switch_counts!(df, idx, "goodsw")
-            df.goodsw_type[idx] = SWITCH_TYPES[HTRANS[df.hmm_strat[idx-1], df.hmm_strat[idx]]]
+            switch_type = SWITCH_TYPES[HTRANS[df.hmm_strat[idx-1], df.hmm_strat[idx]]]
+            around_switch_counts!(df, idx, "goodsw", switch_type, persev_choices)
         end
         if df.random_switch[idx] == 1
             df.random_switch[idx] = 1
-            around_switch_counts!(df, idx, "randomsw")
-            df.randomsw_type[idx] = df.othersw_type[idx-1]
+            around_switch_counts!(df, idx, "randomsw", df.othersw_type[idx-1], persev_choices)
         end
     end    
     return df

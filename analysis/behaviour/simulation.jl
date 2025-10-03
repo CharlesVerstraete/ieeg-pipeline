@@ -67,18 +67,40 @@ plot(all_sub_df.rt_zscore)
 
 
 
+all_sub_df[all_sub_df.persev_hmm .== 1, end-40:end]
 
 
 
 
+test = combine(groupby(all_sub_df, [:firstsw_trial, :firstsw_type]), :correct => mean => :mean)
+test_pos = test[test.firstsw_trial .> 0, :]
+test_pos = test_pos[test_pos.firstsw_trial .< 10, :]
+test_neg = test[test.firstsw_trial .< 0, :]
+test_neg = test_neg[test_neg.firstsw_trial .> -10, :]
+@df test_neg plot(:firstsw_trial, :mean, group = :firstsw_type, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
+@df test_pos plot!(:firstsw_trial, :mean, group = :firstsw_type, linewidth = 2, palette = :Dark2_3)
 
-test = combine(groupby(all_sub_df, [:randomsw_trial, :is_stimstable]), :explor => mean => :mean)
-test_pos = test[test.randomsw_trial .> 0, :]
-test_pos = test_pos[test_pos.randomsw_trial .< 10, :]
-test_neg = test[test.randomsw_trial .< 0, :]
-test_neg = test_neg[test_neg.randomsw_trial .> -10, :]
-@df test_neg plot(:randomsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
-@df test_pos plot!(:randomsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3)
+
+test = combine(groupby(all_sub_df, [:goodsw_trial, :goodsw_type]), :correct => mean => :mean)
+test_pos = test[test.goodsw_trial .> 0, :]
+test_pos = test_pos[test_pos.goodsw_trial .< 10, :]
+test_neg = test[test.goodsw_trial .< 0, :]
+test_neg = test_neg[test_neg.goodsw_trial .> -10, :]
+@df test_neg plot(:goodsw_trial, :mean, group = :goodsw_type, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
+@df test_pos plot!(:goodsw_trial, :mean, group = :goodsw_type, linewidth = 2, palette = :Dark2_3)
+
+test = combine(groupby(all_sub_df, [:randomsw_pres, :subject]), :correct => mean => :mean)
+test = combine(groupby(test, [:randomsw_pres]), :mean => mean => :mean, :mean => std => :std, nrow => :n)
+test.sem .= test.std ./ sqrt.(test.n)
+test_pos = test[test.randomsw_pres .> 0, :]
+test_pos = test_pos[test_pos.randomsw_pres .< 10, :]
+test_neg = test[test.randomsw_pres .< 0, :]
+test_neg = test_neg[test_neg.randomsw_pres .> -10, :]
+@df test_neg plot(:randomsw_pres, :mean, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false, ribbons = :sem)
+@df test_pos plot!(:randomsw_pres, :mean, linewidth = 2, palette = :Dark2_3, ribbons = :sem)
+
+
+
 
 
 
@@ -193,7 +215,7 @@ end
 # save_path = string(DATA_PATH, "/simu_rank", "/sub-$(f_sub)_task-stratinf_sim-ranked.csv")
 # CSV.write(save_path, complete_simu)
 all_sub_df_simu = vcat(all_sub_df_simu, complete_simu)
-end
+# end
 
 scatter(all_sub_df_simu.rpe, all_sub_df_simu.update_counterfactual, ms = 0.5, msc = 0, alpha = 0.5)
 

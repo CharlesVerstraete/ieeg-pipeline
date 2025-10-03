@@ -106,7 +106,7 @@ function add_persev_explor!(df)
 
     past_rule = [0 0 0]
     for i in 1:nrow(df)
-        if df[i, :epis] > 1
+        if df[i, :epis] > 0
             if df[i, :new_block] == 1
                 past_rule = rule[i-1, :]
             end
@@ -116,7 +116,7 @@ function add_persev_explor!(df)
     
     explor = [(filter!(e -> !(e in [a,b]), [1,2,3])) for (a,b) in zip(df.persev_choice,  df.correct_choice)]
     # df.explor_choice = [length(x) == 1 ? x[1] : 0 for x in explor]
-
+    df.explor_choice = explor
     df.persev .= df.persev_choice .== df.choice
     # df.explor = df.explor_choice .== df.choice
     df.explor .= [df.choice[i] in explor[i] for i in 1:nrow(df)]
