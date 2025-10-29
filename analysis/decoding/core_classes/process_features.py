@@ -7,7 +7,7 @@ Module pour extraire et préparer les caractéristiques pour l'analyse
 
 from analysis.decoding.config import *
 from analysis.decoding.config import *
-from analysis.decoding.loader import iEEGDataLoader
+from analysis.decoding.core_classes.loader import iEEGDataLoader
 from joblib import Parallel, delayed
 
 class Features:

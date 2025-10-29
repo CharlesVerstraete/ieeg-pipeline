@@ -6,8 +6,8 @@ Module pca and manifold manipulation
 """
 # from decoding.config import *
 from analysis.decoding.config import *
-from analysis.decoding.loader import GroupLoader
-from analysis.decoding.process_features import Features
+from analysis.decoding.core_classes.loader import GroupLoader
+from analysis.decoding.core_classes.process_features import Features
 from sklearn.decomposition import PCA
 
 

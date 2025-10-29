@@ -7,8 +7,8 @@ Module for decoding analysis of iEEG data
 # from decoding.config import *
 
 from analysis.decoding.config import *
-from analysis.decoding.loader import GroupLoader
-from analysis.decoding.process_features import Features
+from analysis.decoding.core_classes.loader import GroupLoader
+from analysis.decoding.core_classes.process_features import Features
 from tqdm import tqdm
 from scipy.stats import pearsonr
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram

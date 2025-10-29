@@ -18,9 +18,9 @@ PROJECT_ROOT = os.path.abspath("/Users/charles/Documents/PhD/Analysis/ieeg-pipel
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from analysis.decoding.loader import iEEGDataLoader
-from analysis.decoding.process_features import Features
-from analysis.decoding.decoding import Decoding
+from analysis.decoding.core_classes.loader import iEEGDataLoader
+from analysis.decoding.core_classes.process_features import Features
+from analysis.decoding.core_classes.decoding import Decoding
 from analysis.decoding.config import *
 
 from scipy.ndimage import gaussian_filter
@@ -45,8 +45,8 @@ event_name = "fb"
 tmin = -1.5
 tmax = 1.5
 
-subjects = [3, 4, 5, 8, 9, 12, 14, 16, 19, 20, 23, 25, 28]
-
+# subjects = [3, 4, 5, 8, 9, 12, 14, 16, 19, 20, 23, 25, 28]
+subjects = [14, 16]
 for subject in subjects:
     print(f"Processing subject {subject}")
     power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_tfr-realign-{event_name}_{tmin}-{tmax}_power.npy")
@@ -78,8 +78,8 @@ for subject in subjects:
     fig, _ = test_decoding.plot_multi_tc("", y = "score", ylim=(0.4, 0.7))
     # fig.close()
     plt.close(fig)
-    fig, _ = test_decoding.plot_multi_heatmap("", y = "score", save=False)
-    plt.close(fig)
+    # fig, _ = test_decoding.plot_multi_heatmap("", y = "score", save=False)
+    # plt.close(fig)
 
 
 # event_name = "fb"

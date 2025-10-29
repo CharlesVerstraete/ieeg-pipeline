@@ -7,9 +7,9 @@ Module for group analysis of decoding
 
 
 from analysis.decoding.config import *
-from analysis.decoding.loader import GroupLoader
+from analysis.decoding.core_classes.loader import GroupLoader
 from analysis.decoding.decoding_analysis import DecodingAnalysis
-from analysis.decoding.process_features import Features
+from analysis.decoding.core_classes.process_features import Features
 from analysis.decoding.geometry import Geometry
 from tqdm import tqdm
 
@@ -1475,8 +1475,8 @@ plt.figure(figsize=(12, 12))
 sns.heatmap(betas_group_byregion, cmap='jet', cbar=True, yticklabels=regions.unique(), xticklabels=fr_band)
 plt.show()
 
-from analysis.decoding.loader import iEEGDataLoader
-from analysis.decoding.process_features import Features
+from analysis.decoding.core_classes.loader import iEEGDataLoader
+from analysis.decoding.core_classes.process_features import Features
 subject = 2
 loader = iEEGDataLoader(subject)
 power_data = loader.load_power()
