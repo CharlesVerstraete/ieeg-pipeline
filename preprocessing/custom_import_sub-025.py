@@ -13,7 +13,26 @@ from preprocessing.config import *
 from preprocessing.utils.data_helper import *
 from preprocessing.utils.align_helper import *
 
-new_action_trigger = {7: 71, 9: 73, 15: 79, 186: 250, 187: 251, 188: 252, 37: 101, 136: 200, 38: 102, 138: 202, 146: 210, 148: 212, 36: 100, 189: 253, 137: 201, 46: 110, 147: 211, 48: 112, 47: 111, 176: 240}
+new_action_trigger = {7: 71, 
+                      9: 73, 
+                      15: 79, 
+                      186: 250, 
+                      187: 251, 
+                      188: 252, 
+                      37: 101, 
+                      136: 200, 
+                      38: 102, 
+                      138: 202, 
+                      146: 210, 
+                      148: 212, 
+                      36: 100, 
+                      189: 253, 
+                      137: 201, 
+                      46: 110, 
+                      147: 211, 
+                      48: 112, 
+                      47: 111, 
+                      176: 240}
 
 subject = 25
 create_subject_folder(subject)

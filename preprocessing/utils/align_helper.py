@@ -11,7 +11,6 @@ Helper functions for aligning data and events dataframe making
 
 import numpy as np
 import os
-import numpy as np
 import pandas as pd 
 import mne
 

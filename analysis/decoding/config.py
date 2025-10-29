@@ -20,20 +20,22 @@ from copy import deepcopy
 import gc
 import json
 
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 plt.style.use('seaborn-v0_8-paper') 
 
 
 
-ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
-ROOT_DIR = os.path.join(ORIGINAL_DIR, "analysis_v3")
-DATA_DIR = os.path.join(ROOT_DIR, "data")
+# ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"``
+ROOT_DIR = os.path.join("/Users", "charles", "Documents", "PhD")
+DATA_DIR = os.path.join(ROOT_DIR, "Data")
+# ROOT_DIR = os.path.join(ORIGINAL_DIR, "analysis_v3")
+# DATA_DIR = os.path.join(ROOT_DIR, "data")
 
-CLUSTER_DIR = os.path.join(ORIGINAL_DIR, "data_cluster")
-BEH_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/behaviour"
+# CLUSTER_DIR = os.path.join(ORIGINAL_DIR, "data_cluster")
+# BEH_DIR =  #"/Users/charles.verstraete/Documents/w3_iEEG/behaviour"
 
-FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
-OUTPUT_DIR = os.path.join(ROOT_DIR, "analysis", "decoding_outputs")
+FIGURES_DIR = os.path.join(ROOT_DIR, "Analysis","figures")
+OUTPUT_DIR = os.path.join(ROOT_DIR, "Analysis", "decoding_outputs")
 VAR_LIST = ['reliability', 'entropy','action_value', "counterfactual", 'update_reliability', "rpe", "update_counterfactual", 'joint_counterfactual']
 
 # DATA_DIR = "/home/cverstraete/nasShare/projects/cverstraete/data"
@@ -116,43 +118,73 @@ area_dict = {
 #     'Frontopolar': '#e54994'     # Rose-rouge plus profond
 # }
 
+# area_colors = {
+#     # Gradient orange-pêche (espacement maximal)
+#     'Somatosensory': '#cc3300',  # Rouge-orange très foncé
+#     'Motor': '#e64d00',          # Orange foncé
+#     'Premotor': '#ff6600',       # Orange vif
+#     'SMA': '#ff8040',            # Orange moyen-clair (plus séparé)
+#     'preSMA': '#ffb380',         # Orange très clair (bien distinct)
+    
+#     # Gradient vert (espacement maximal)
+#     'Posterior_Insula': '#1a5c2a',  # Vert très foncé
+#     'Anterior_Insula': '#2e7a40',   # Vert foncé
+#     'FOP': '#80cc99',              # Vert clair (très distinct)
+    
+#     # Gradient bleu (espacement maximal)
+#     'mid-VLPFC': '#0d4d80',      # Bleu très foncé
+#     'VLPFC_POST': '#1a66a0',     # Bleu foncé
+#     'DLPFC_POST': '#4080cc',     # Bleu moyen-clair (plus séparé)
+#     'mid-DLPFC': '#80c0ff',      # Bleu clair (très distinct)
+    
+#     # Gradient violet (espacement maximal)
+#     'DMPFC': '#4d1a66',          # Violet très foncé
+#     'MCCa': '#7040aa',           # Violet moyen-clair (plus séparé)
+#     'ACC': '#b380e6',            # Violet clair (très distinct)
+    
+#     # Gradient rose (espacement maximal)
+#     'VMPFC': '#990033',          # Rose très foncé
+#     'OFC': '#cc3366',            # Rose moyen
+#     'Frontopolar': '#ff80b3'     # Rose clair (très distinct)
+# }
+
 area_colors = {
-    # Gradient orange-pêche (espacement maximal)
-    'Somatosensory': '#cc3300',  # Rouge-orange très foncé
-    'Motor': '#e64d00',          # Orange foncé
-    'Premotor': '#ff6600',       # Orange vif
-    'SMA': '#ff8040',            # Orange moyen-clair (plus séparé)
-    'preSMA': '#ffb380',         # Orange très clair (bien distinct)
-    
-    # Gradient vert (espacement maximal)
-    'Posterior_Insula': '#1a5c2a',  # Vert très foncé
-    'Anterior_Insula': '#2e7a40',   # Vert foncé
-    'FOP': '#80cc99',              # Vert clair (très distinct)
-    
-    # Gradient bleu (espacement maximal)
-    'mid-VLPFC': '#0d4d80',      # Bleu très foncé
-    'VLPFC_POST': '#1a66a0',     # Bleu foncé
-    'DLPFC_POST': '#4080cc',     # Bleu moyen-clair (plus séparé)
-    'mid-DLPFC': '#80c0ff',      # Bleu clair (très distinct)
-    
-    # Gradient violet (espacement maximal)
-    'DMPFC': '#4d1a66',          # Violet très foncé
-    'MCCa': '#7040aa',           # Violet moyen-clair (plus séparé)
-    'ACC': '#b380e6',            # Violet clair (très distinct)
-    
-    # Gradient rose (espacement maximal)
-    'VMPFC': '#990033',          # Rose très foncé
-    'OFC': '#cc3366',            # Rose moyen
-    'Frontopolar': '#ff80b3'     # Rose clair (très distinct)
+    # Gradient orange-pêche (CET "roma"/"batlow" inspired)
+    'Somatosensory': '#8C2D04',  # Brun-orangé profond
+    'Motor': '#D94801',          # Orange foncé
+    'Premotor': '#F16913',       # Orange moyen
+    'SMA': '#FDAE6B',            # Orange clair
+    'preSMA': '#FDD0A2',         # Pêche pâle
+
+    # Gradient vert (CET "bamako"/ColorBrewer "YlGn" inspired)
+    'Posterior_Insula': '#00441B',  # Vert très foncé
+    'Anterior_Insula': '#238B45',   # Vert foncé saturé
+    'FOP': '#A1D99B',               # Vert clair, lisible
+
+    # Gradient bleu (CET "oleron"/ColorBrewer "PuBu" inspired)
+    'mid-VLPFC': '#08306B',      # Bleu profond
+    'VLPFC_POST': '#2171B5',     # Bleu soutenu
+    'DLPFC_POST': '#6BAED6',     # Bleu moyen-clair
+    'mid-DLPFC': '#C6DBEF',      # Bleu très clair
+
+    # Gradient violet (CET "vik"/ColorBrewer "Purples" inspired)
+    'DMPFC': '#3F007D',          # Violet très foncé
+    'MCCa': '#88419D',           # Violet moyen distinct
+    'ACC': '#C994C7',            # Violet clair
+
+    # Gradient rose 
+    'VMPFC': "#A60339",          
+    'OFC': "#E60D5D",            
+    'Frontopolar': '#F768A1'     
 }
 
 palette = sns.color_palette("Dark2")
 stable_color = palette[3]
 partial_color = palette[2]
 complete_color = palette[0]
-palette_dict = {0: partial_color, 1: stable_color, -1: complete_color}
+palette_dict = {0: partial_color, 1: stable_color, 2: complete_color}
 switch_palette = {"overlap" : partial_color, "global" : complete_color, "random" : "grey"}
-rule_changes = {0: "Partial", 1: "Stable", -1: "Complete"}
+rule_changes = {0: "Partial", 1: "Stable", 2: "Complete"}
 
 
 stim_ids = [10, 20, 30, 11, 21, 31, 12, 22, 32]
@@ -187,8 +219,7 @@ fr_cutoff = [value for _, value in FREQUENCY_BANDS.items()]
 band_indices = [np.argmin(np.abs(freqlist - val[0])) for val in fr_cutoff]
 band_indices.append(len(freqlist)-1)
 n_frband = len(FREQUENCY_BANDS)
-fr_cutoff
-
+band_indices
 WOI_start_time = 1.5
 WOI_end_time = 3.5
 WOI_start_idx= int((epoch_padding - WOI_start_time) * sr_decimated)

@@ -159,7 +159,7 @@ ieeg-pipeline/
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.12
 - NumPy, SciPy, Pandas
 - MNE, Neo
 - Matplotlib, Seaborn

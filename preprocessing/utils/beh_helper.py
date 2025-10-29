@@ -12,7 +12,8 @@ Helper functions for behavioral data
 import numpy as np
 import pandas as pd 
 import mne
-
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 from preprocessing.config import *
 
 # Functions definitions
@@ -84,65 +85,47 @@ from preprocessing.config import *
 
 
 def zscore(vect):
-    return (vect-np.mean(vect))/np.std(vect)
+    return (vect-np.nanmean(vect))/np.nanstd(vect)
 
+def get_residual_rt(df, factors, covariates = None):
+        formula = (
+            "rt_zscore ~" 
+        )
+        for factor in factors :
+            if formula.endswith("~") :
+                formula = formula + f" C({factor})"
+            else :
+                formula = formula + f" + C({factor})"
+        if covariates is not None :
+            for covariate in covariates :
+                formula = formula + f" + {covariate}"
 
-def get_df(fileslist, rt_zscore=False, filter=False, add_prev=False):
+        model = ols(formula, data=df).fit()
+        df["residuals_rt"] = model.resid
+        return df
+
+def get_df(fileslist):
     df_list = []
     for file in fileslist:
         tmp_df = pd.read_csv(file)
-        # tmp_df["trial_count"] = np.arange(1, len(tmp_df) + 1, dtype=int)
-        # tmp_df = add_persev_explor(tmp_df)
-        tmp_df = find_criterion(tmp_df)
-        tmp_df = tmp_df[tmp_df["criterion"] == 0].reset_index(drop=True)
-        if rt_zscore and "rt" in tmp_df.columns:
-            tmp_df = tmp_df[(tmp_df["rt"] > 0) & (tmp_df["rt"] < 5)]
-            tmp_df = tmp_df.reset_index(drop=True)
-            tmp_df["rt_zscore"] = zscore(tmp_df["rt"].values)
-        if filter:
-            tmp_df.loc[tmp_df["is_stimstable"].isna(), "is_stimstable"] = -1
-            tmp_df["fb_prev"] = 0
-            tmp_df = tmp_df[tmp_df["training"] == 0]
-            tmp_df = tmp_df[tmp_df["miss"] == 0]
-            tmp_df = tmp_df.reset_index(drop=True)
-            tmp_df.loc[1:, "fb_prev"] = tmp_df["fb"].values[:-1]
-        if add_prev:
-            tmp_df = add_before_pres(tmp_df)
-            tmp_df = add_before_trial(tmp_df)
-            tmp_df = tmp_df.reset_index(drop=True)
+        tmp_df.loc[(tmp_df["rt"] < 0) | (tmp_df["rt"] > 5), "rt"] = np.nan
+        tmp_df["rt_zscore"] = zscore(tmp_df["rt"].values)
+        tmp_df = get_residual_rt(tmp_df, ["prev_fb"])
+        tmp_df.loc[tmp_df["next_stable"] == -1, "next_stable"] = 2
+        tmp_df = tmp_df[tmp_df["training"] == 0]
+        tmp_df = tmp_df[tmp_df["criterion"] == False]
         tmp_df = recount_trials(tmp_df)
-        tmp_df = recount_trial_switch(tmp_df)
+        tmp_df = add_before_pres(tmp_df)
+        tmp_df = add_before_trial(tmp_df)
+        # tmp_df = add_persev_explor(tmp_df)
+        tmp_df = tmp_df.reset_index(drop=True)
+
         df_list.append(tmp_df)
 
     df = pd.concat(df_list, ignore_index=True)
     return df
 
-def recount_trial_switch(df):
-    df = df.copy().reset_index(drop=True)
-    trials = []
-    stim_pres_count = np.zeros(3, dtype=int)
-    stim_pres = []
-    first_switch = False
-    for _, row in df.iterrows():
-        if not first_switch:
-            first_switch = row["firstswitch"] == 1
-        if first_switch :
-            if row["firstswitch"] == 1 :
-                stim_pres_count[:] = 0
-                trials.append(1)
-                stim_pres_count[int(row["stim"]) - 1] += 1
-                stim_pres.append(stim_pres_count[int(row["stim"]) - 1])
-            else:
-                trials.append(trials[-1] + 1)
-                stim_pres_count[int(row["stim"]) - 1] += 1
-                stim_pres.append(stim_pres_count[int(row["stim"]) - 1])
-        else :
-            trials.append(0)
-            stim_pres.append(0)
-    
-    df["post_hmmsw_trial"] = trials
-    df["post_hmmsw_pres"] = stim_pres
-    return df
+
 
 def recount_trials(df):
     df = df.copy().reset_index(drop=True)
@@ -185,7 +168,7 @@ def add_before_pres(df) :
                     stim_count[stim_idx] += 1
                     df.at[t, "before_pres"] = -stim_count[stim_idx]
                     if pd.isna(who_stable):
-                        df.at[t, "next_stable"] = -1
+                        df.at[t, "next_stable"] = 2
                     else:
                         df.at[t, "next_stable"] = 1 if int(df.at[t, "stim"]) == int(who_stable) else 0
     df["before_pres"] = df["before_pres"].fillna(0)

@@ -16,6 +16,7 @@ class iEEGDataLoader:
         self.ch_names = None
         self.times = None
         self.freqlist = None
+        self.n_epochs = None
         self._load_metadata()
         
     def _load_metadata(self):
@@ -24,29 +25,42 @@ class iEEGDataLoader:
         with open(metadata_path, 'r') as f:
             self.metadata = json.load(f)
         self.ch_names = self.metadata['ch_names']
+        self.times = np.array(self.metadata['times_decimed'])
+        self.freqlist = np.array(self.metadata['freqlist'])
+        self.n_epochs = self.metadata['n_epochs']
+        self.n_channels = self.metadata['n_channels']
     
-    def load_power(self):
-        power_path = os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "timefreq", f"sub-{int(self.subject):03}_tfr-power.npy")
-        power = np.memmap(
-            power_path, dtype='float16', mode='r', 
-            shape=(
-                self.metadata['n_epochs'], 
-                self.metadata['n_channels'], 
-                self.metadata['n_freqs'], 
-                len(self.metadata['times_decimed']),
-            )
+    def load_power(self, path=None):
+        if path is None:
+            path = os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "timefreq", f"sub-{int(self.subject):03}_tfr-power.npy")
+            power = np.memmap(
+                path, dtype='float16', mode='r', 
+                shape=(
+                    self.n_epochs, 
+                    self.n_channels, 
+                    n_freqs, 
+                    n_times_decimed,
+                )
         )
+        else:
+            power = np.load(path, mmap_mode='r')
         print(f"Données de puissance chargées: {power.shape}")
         return np.array(power, copy=True)
 
+    def load_baseline(self, path = None):
+        if path is None:
+            path = os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "timefreq", f"sub-{int(self.subject):03}_tfr-baseline.npy")
+        baseline = np.load(path)
+        print(f"Données de baseline chargées: {baseline.shape}")
+        return baseline
     
     def load_phase(self):
         phase_path =os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "timefreq", f"sub-{int(self.subject):03}_tfr-phase.npy")
         phase = np.memmap(
             phase_path, dtype='float16', mode='r', 
             shape=(
-                self.metadata['n_epochs'], 
-                self.metadata['n_channels'], 
+                self.n_epochs, 
+                self.n_channels, 
                 n_freqs, 
                 n_times_decimed
             )
@@ -56,8 +70,9 @@ class iEEGDataLoader:
 
     
     def load_behavior(self, model_type):        
-        beh_path = os.path.join(CLUSTER_DIR, 'beh', f"sub-{self.subject:03}_task-stratinf_beh.tsv")
-        simu_path = os.path.join(BEH_DIR, 'forced', f"sub-{self.subject:03}_task-stratinf_sim-forced.csv")
+        beh_path = os.path.join(ROOT_DIR, 'tmp_data', "beh", f"sub-{self.subject:03}_task-stratinf_beh.csv")
+        # simu_path = os.path.join(BEH_DIR, 'forced', f"sub-{self.subject:03}_task-stratinf_sim-forced.csv")
+        simu_path = os.path.join(ROOT_DIR, 'tmp_data', "hmm", f"sub-{self.subject:03}_task-stratinf_beh-hmm.csv")
         events_path = os.path.join(DATA_DIR, f"sub-{int(self.subject):03}", "preprocessed", "epochs", f"sub-{self.subject:03}_events-updated.tsv")
 
         beh_df = pd.read_csv(beh_path, sep=",")
@@ -66,15 +81,60 @@ class iEEGDataLoader:
 
         onset_events = events[events["trigger_value"].isin(stim_ids)].reset_index(drop = True)
         onset_events = onset_events[onset_events["align_eeg"] != "-"].reset_index(drop = True)
+
+        beh_df["trial_count"] = np.arange(1, len(beh_df) + 1)
         
-        simu_df.loc[simu_df["is_stimstable"].isna(), "is_stimstable"] = -1
-        simu_df["fb_prev"] = 0
-        simu_df.loc[1:, "fb_prev"] = simu_df["fb"].values[:-1]
+        simu_df = simu_df[simu_df["training"] == 0]
         beh_orig_eegmap = beh_df[beh_df["trial_count"].isin(onset_events["trial_count"])].reset_index(drop = True)
         common_trials = np.intersect1d(beh_orig_eegmap["trial_count"], simu_df["trial_count"])
         event_tokeep = beh_orig_eegmap[beh_orig_eegmap["trial_count"].isin(common_trials)].index
+
         simu_behav_clean = simu_df[simu_df["trial_count"].isin(common_trials)].reset_index(drop = True)
-        return simu_behav_clean, event_tokeep
+        events_df = events[events["trial_count"].isin(common_trials)].reset_index(drop = True)
+        events_df["decimated_sample"] = (events_df["sample_update"] / decimation).astype(int)
+
+        return simu_behav_clean, event_tokeep, events_df
+
+    def get_events_dict(self, beh_df, events):
+        """Get a dictionary of events"""
+        events_dict = {
+            "trial": [],
+            "onset" : [],
+            "action" : [],
+            "fb" : [],
+            "is_missing_fb" : [],
+            "is_missing_action" : [],
+            "beh_rt" : [],
+            "events_rt" : [],
+            "padded_fb" : [],
+            "padded_action" : []
+        }
+        zero_epoch = int(epoch_padding * sr_decimated)
+        for trial, beh_rt in beh_df[["trial_count", "rt"]].values:
+            event_trial = events[events["trial_count"] == trial]
+            event_seq = event_trial["decimated_sample"].values
+            events_dict["trial"].append(trial)
+            events_dict["onset"].append(zero_epoch)
+            if event_seq[1] == 0 or (event_seq[0] > event_seq[1]) or (event_seq[1] - event_seq[0] > 5*sr_decimated):
+                events_dict["is_missing_action"].append(1)
+                estimated_rt = int(zero_epoch + beh_rt * sr_decimated)
+                events_dict["action"].append(estimated_rt)
+                events_dict["events_rt"].append(beh_rt)
+            else :
+                events_dict["is_missing_action"].append(0)
+                events_dict["action"].append((event_seq[1]-event_seq[0]) + zero_epoch)
+                events_dict["events_rt"].append((event_seq[1]-event_seq[0])/sr_decimated)
+            if event_seq[2] == 0 or (event_seq[0] > event_seq[2]) or (event_seq[2] - event_seq[1] > 2*sr_decimated):
+                events_dict["is_missing_fb"].append(1)
+                estimated_fb = int(zero_epoch + (beh_rt + 1) * sr_decimated)
+                events_dict["fb"].append(estimated_fb)
+            else :
+                events_dict["is_missing_fb"].append(0)
+                events_dict["fb"].append((event_seq[2]-event_seq[1]) + events_dict["action"][-1])
+            events_dict["beh_rt"].append(beh_rt)
+        for key in events_dict.keys():
+            events_dict[key] = np.array(events_dict[key])
+        return events_dict
 
     
     def load_anatomy(self):
@@ -84,20 +144,26 @@ class iEEGDataLoader:
         anat_df["chan_idx"] = anat_df["name"].apply(lambda x: self.ch_names.index(x))
         return anat_df
 
+    def extract_window_of_interest(self, data, start_idx=WOI_start_idx, end_idx=WOI_end_idx):
+        """Extract the window of interest from the data"""
+        return data[:, :, :, start_idx:end_idx]
+
 
 class GroupLoader:
 
-    def __init__(self, subjects):
+    def __init__(self, subjects, tmin = -WOI_start_time, tmax = WOI_end_time):
         self.subjects = subjects
         self.n_subjects = len(subjects)
         self.data_loaders = {subject : iEEGDataLoader(subject) for subject in subjects}
-        self.n_timepoints = n_timepoints
+        self.n_timepoints = int((np.abs(tmin) + np.abs(tmax)) * sr_decimated)
         self.n_channels = np.sum([loader.metadata['n_channels'] for loader in self.data_loaders.values()])
         self.n_frband = n_frband
         self.anatomy_data = None
         self.beh_data = None
         self.global_score = {}
+        self.global_metric = {}
         self.channel_score = {}
+        self.channel_metric = {}
         self.global_betas = {}
         self.channel_betas = {}
         self.event = {}
@@ -105,10 +171,28 @@ class GroupLoader:
     def load_decoding_metric(self, fold, var, model_name, model_type, mode):
         """Load the decoding data for a specific subject and variable"""
         if mode == "channel":
-            self.channel_score[var] = np.zeros((self.n_timepoints, self.n_channels))
+            self.channel_metric[var] = np.zeros((self.n_timepoints, self.n_channels))
             start_idx = 0
             for i, subject in enumerate(self.subjects) :
                 file_path = os.path.join(OUTPUT_DIR, f"{model_name}", f"{model_type}", f"sub-{int(subject):03}_{var}_{model_name}_fold-{fold}_metric-{mode}.npy")
+                score = np.load(file_path)
+                end_idx = start_idx + score.shape[-1]
+                self.channel_metric[var][:, start_idx:end_idx] = score
+                start_idx = end_idx
+        else:
+            self.global_metric[var] = np.zeros((len(self.subjects), self.n_timepoints))
+            for i, subject in enumerate(self.subjects) :
+                file_path = os.path.join(OUTPUT_DIR, f"{model_name}", f"{model_type}", f"sub-{int(subject):03}_{var}_{model_name}_fold-{fold}_metric-{mode}.npy")
+                score = np.load(file_path)
+                self.global_metric[var][i] = score
+
+    def load_decoding_score(self, fold, var, model_name, model_type, mode):
+        """Load the decoding data for a specific subject and variable"""
+        if mode == "channel":
+            self.channel_score[var] = np.zeros((self.n_timepoints, self.n_channels))
+            start_idx = 0
+            for i, subject in enumerate(self.subjects) :
+                file_path = os.path.join(OUTPUT_DIR, f"{model_name}", f"{model_type}", f"sub-{int(subject):03}_{var}_{model_name}_fold-{fold}_score-{mode}.npy")
                 score = np.load(file_path)
                 end_idx = start_idx + score.shape[-1]
                 self.channel_score[var][:, start_idx:end_idx] = score
@@ -116,7 +200,7 @@ class GroupLoader:
         else:
             self.global_score[var] = np.zeros((len(self.subjects), self.n_timepoints))
             for i, subject in enumerate(self.subjects) :
-                file_path = os.path.join(OUTPUT_DIR, f"{model_name}", f"{model_type}", f"sub-{int(subject):03}_{var}_{model_name}_fold-{fold}_metric-{mode}.npy")
+                file_path = os.path.join(OUTPUT_DIR, f"{model_name}", f"{model_type}", f"sub-{int(subject):03}_{var}_{model_name}_fold-{fold}_score-{mode}.npy")
                 score = np.load(file_path)
                 self.global_score[var][i] = score
             
@@ -158,8 +242,8 @@ class GroupLoader:
         """Load the behavior data for all subjects"""
         self.beh_data = pd.DataFrame()
         for subject in self.subjects:
-            simu_behav_clean, _ = self.data_loaders[subject].load_behavior(model_type)
-            simu_behav_clean = self._format_exploration(simu_behav_clean)
+            simu_behav_clean, _, _ = self.data_loaders[subject].load_behavior(model_type)
+            # simu_behav_clean = self._format_exploration(simu_behav_clean)
             self.beh_data = pd.concat([self.beh_data, simu_behav_clean], ignore_index=False)
         self.get_events_dict()
 

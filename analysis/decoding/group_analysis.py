@@ -15,6 +15,314 @@ from tqdm import tqdm
 
 plt.style.use('seaborn-v0_8-poster') 
 
+subjects = [2, 3, 4, 5, 8, 9, 12, 14, 16, 19, 20, 23, 25, 28]
+group_selection = GroupLoader(subjects)
+group_selection.load_anatomy()
+event_name = "fb"
+tmin = -1.5
+tmax = 1.5
+complete_beh = pd.DataFrame()
+complete_tfr = {subject: None for subject in subjects}
+complete_baseline = {subject: None for subject in subjects}
+# for subject in subjects:
+for i, subject in enumerate(subjects):
+# subject = 28
+    power_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_tfr-realign-{event_name}_{tmin}-{tmax}_power.npy")
+    metadata_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_tfr-realign-{event_name}-{tmin}-{tmax}_metadata.json"))
+    with open(metadata_path, 'r', encoding='utf-8') as f: 
+        metadata = json.load(f)
+    n_epochs = metadata["n_epochs"]
+    n_channels = metadata["n_channels"]
+    event_to_keep = metadata["keep_events"]
+    complete_tfr[subject] = np.load(power_path, mmap_mode='r')#np.memmap(power_path, mode='r', shape=(n_epochs, n_channels, n_freqs, int((tmax - tmin)*sr_decimated)), dtype=np.float16)
+    baseline_path = os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "timefreq", f"sub-{int(subject):03}_tfr-baseline.npy")
+    baseline = np.load(baseline_path)
+    complete_baseline[subject] = baseline[event_to_keep]
+    beh_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_task-stratinf_beh-aligned.csv"))
+    beh = pd.read_csv(beh_path)
+    beh["index"] = beh.index
+    complete_beh = pd.concat([complete_beh, beh], ignore_index=True)
+
+
+
+complete_beh.columns
+# test = np.zeros((80, 256))
+# n_included = 0
+for var in  ["firstswitch", "goodswitch", "is_random", "random_switch", "good_strat"] :
+    for roi, anat_df in group_selection.anatomy_data.groupby("region") :
+        fig, axs = plt.subplots(4, 4, figsize=(20, 12), sharex=True, sharey=True)
+        axs = axs.flatten()
+        for i, subject in enumerate(subjects):
+            anat = anat_df[anat_df["subject"] == subject]
+            anat_idx = anat["chan_idx"].values
+            if len(anat_idx) != 0 :
+                beh = complete_beh[complete_beh["subject"] == subject]
+                beh_idx = beh.loc[beh[var] == 1, "index"].values
+                if len(beh_idx) != 0:
+                    tfr = complete_tfr[subject][beh_idx][:, anat_idx]   # shape = (n_switch, n_chan, n_freqs, nt)
+                    baseline_sub = complete_baseline[subject][beh_idx][:, anat_idx, :, :]
+                    tfr = np.mean(tfr - baseline_sub, axis=(0,1))
+                    lim = np.max(np.abs(tfr))
+                    im = axs[i].imshow(gaussian_filter(tfr.astype(np.float32), sigma=1), aspect='auto', cmap='jet', origin='lower', vmin=-lim, vmax=lim)
+                    axs[i].axvline(int(1.5*sr_decimated), color='black', linestyle='--')
+                    axs[i].set_title(f"{subject} - {len(anat_idx)} chan - {len(beh_idx)} trials")
+                    plt.colorbar(im, ax=axs[i])
+                else:
+                    axs[i].set_title(f"Subject {subject} - No {var}")
+            else:
+                axs[i].set_title(f"Subject {subject} - No {roi}")
+                axs[i].axis('off')
+        plt.tight_layout()
+        plt.suptitle(roi, fontsize=20)
+        plt.subplots_adjust(top=0.92)
+        plt.savefig(os.path.join(FIGURES_DIR, f"group_{roi}_{var}.png"))
+
+
+plt.tight_layout()
+plt.show()
+
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.svm import LinearSVC
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_auc_score, f1_score
+from sklearn.impute import SimpleImputer
+
+
+cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+clf = CalibratedClassifierCV(LinearSVC(max_iter=10000), cv=cv, n_jobs=-1)
+pipeline = make_pipeline(StandardScaler(), clf)
+imputer = SimpleImputer(strategy="mean")  # or "median"
+n_time = complete_tfr[subject].shape[-1]
+full_roc = {var: np.zeros((len(subjects), n_time//10 + 1)) for var in ["stim"]}
+var = "stim"
+# for subject in subjects:
+subject = subjects[0]
+n_epoch = complete_tfr[subject].shape[0]
+for t in range(0, n_time, 10):
+# t = 384
+    X = complete_tfr[subject][:,:,:,t].reshape(n_epoch, -1)
+    # for var in ["fb", "hmm_switch"]:
+    y = complete_beh[complete_beh["subject"] == subject][var].values
+    # _ = pipeline.fit(X, y)
+    # y_pred = pipeline.predict(X)
+    # y_proba = pipeline.predict_proba(X)
+    # roc = roc_auc_score(y, y_proba, multi_class="ovr")
+    # f1 = f1_score(y, y_pred, average="weighted")
+    # full_roc[var][subjects.index(subject), t//10] = roc
+    tmp_roc = []
+    tmp_f1 = []
+    for train_idx, test_idx in cv.split(X, y):
+        y_train, y_test = y[train_idx], y[test_idx]
+        X_train = imputer.fit_transform(X[train_idx])
+        X_test = imputer.transform(X[test_idx])
+        _ = pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+        y_proba = pipeline.predict_proba(X_test)
+        # y_score = y_proba[:, 1]  # proba classe positive
+        roc = roc_auc_score(y_test, y_proba, multi_class="ovr")
+        f1 = f1_score(y_test, y_pred, average="weighted")
+        # roc = roc_auc_score(y_test, y_score)
+        tmp_roc.append(roc)
+        tmp_f1.append(f1)
+    roc = np.mean(tmp_roc)
+    f1 = np.mean(tmp_f1)
+    print(f"Time : {t} - ROC AUC = {roc:.3f}, F1 Score = {f1:.3f}")
+    full_roc[var][subjects.index(subject), t//10] = roc
+
+plt.plot(full_roc[var][0, :], alpha=0.8, color='blue', lw = 0.5)
+plt.show()
+
+
+# var = "hmm_switch"
+full_roc = {}
+for var in ["hmm_switch", "is_stimstable", "fb"]:
+    path = os.path.join(FIGURES_DIR, f"group_decoding_roc_{var}.npy")
+    full_roc[var] = np.load(path)
+
+
+fig, axs = plt.subplots(3, 1, figsize=(30, 18))
+axs = axs.flatten()
+for i, var in enumerate(["fb", "hmm_switch", "is_stimstable"]):
+    avr_tc = np.mean(full_roc[var], axis=0)
+    sem_tc = np.std(full_roc[var], axis=0)/np.sqrt(len(subjects))
+    axs[i].plot(full_roc[var].T, alpha=0.8, color='blue', lw = 0.5)
+    axs[i].plot(avr_tc, color='blue', lw=2)
+    axs[i].fill_between(np.arange(len(avr_tc)), avr_tc - sem_tc, avr_tc + sem_tc, color='blue', alpha=0.2)
+    if var != "is_stimstable":
+        axs[i].axvline(((1.5)*sr_decimated), color='red', linestyle='-')
+    axs[i].axhline(0.5, color='black', linestyle='--')
+    axs[i].set_ylim(0.4, 1)
+    axs[i].set_title(f"Decoding performance for {var}")
+plt.tight_layout()
+plt.show()
+
+
+
+avr_tc = np.mean(full_roc[var], axis=0)
+sem_tc = np.std(full_roc[var], axis=0)/np.sqrt(len(subjects))
+plt.plot(full_roc[var].T, alpha=0.8, color='blue', lw = 0.5)
+plt.plot(avr_tc, color='blue', lw=2)
+plt.fill_between(np.arange(len(avr_tc)), avr_tc - sem_tc, avr_tc + sem_tc, color='blue', alpha=0.2)
+plt.axvline(((1.5)*sr_decimated)//10, color='red', linestyle='-')
+plt.axhline(0.5, color='black', linestyle='--')
+plt.ylim(0.4, 0.7)
+plt.title(f"Decoding performance for {var}")
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+beh
+
+power.min()
+
+
+beh_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_task-stratinf_beh-aligned.csv"))
+event_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_events-aligned.csv"))
+beh = pd.read_csv(beh_path)
+beh["index"] = beh.index
+events = pd.read_csv(event_path)
+trials = np.array(beh["trial_count"])
+pad = np.array(metadata["padded_event"])
+idx_padded = np.where(pad != 0)[0]
+n_idx_padded = len(idx_padded)
+idx_padded
+
+baseline = baseline[event_to_keep]
+complete_tfr[subject] = power - baseline
+
+del power, baseline, metadata
+
+gc.collect()
+for subject in subjects:
+    beh_path = os.path.join(os.path.join(DATA_DIR, f"sub-{int(subject):03}", "preprocessed", "aligned", f"sub-{int(subject):03}_task-stratinf_beh-aligned.csv"))
+    beh = pd.read_csv(beh_path)
+    beh["index"] = beh.index
+    complete_beh = pd.concat([complete_beh, beh], ignore_index=True)
+
+metadata.keys()
+idx_padded
+end_offset = int(sr_decimated * tmax)
+start_offset = int(sr_decimated * tmin)
+event_samples = metadata["samples_event"]
+
+end_idx = event_samples[0] + end_offset
+
+start_idx = event_samples[0] + start_offset
+
+syntetic_padding = end_idx - n_times_decimed
+
+mu1 = baseline[0, :, :, 0]#np.mean(power[:10].astype(np.float16), axis=-1)
+mu2 = np.mean(power[0].astype(np.float16), axis=-1, keepdims=True)
+sigma = np.std(power[0].astype(np.float32), axis=-1)
+win_len = end_offset - start_offset
+
+realign_power_data = np.zeros((1, metadata["n_channels"], n_freqs, win_len), dtype=np.float32)
+realign_power_data.shape
+syntetic_padding = end_idx - n_times_decimed
+# mu = baseline[i].astype(np.float32)
+mu = np.mean(power[0].astype(np.float16), axis=-1, keepdims=True)
+sigma = np.std(power[i].astype(np.float32), axis=-1, keepdims=True)
+syntetic_data = np.random.normal(mu, sigma, (metadata["n_channels"], n_freqs, syntetic_padding))
+
+realign_power_data[0, :, :, :win_len-syntetic_padding] = power[0, :, :, :win_len-syntetic_padding]
+realign_power_data[0, :, :, win_len-syntetic_padding:] = syntetic_data
+
+
+
+plt.imshow(realign_power_data[0, 0]-baseline[0, 0], aspect='auto', cmap='jet', origin='lower')
+plt.colorbar()
+plt.show()
+
+
+
+power[0, :, :, win_len-syntetic_padding:]
+power.shape
+
+
+
+
+
+
+
+np.mean(mu1)
+for i in range(25):
+    mu2 = np.mean(power[:i].astype(np.float16), axis=(0, -1))
+    print(np.mean(mu2))
+
+
+
+syntetic_data2 = np.random.normal(mu2[..., None], sigma[..., None], (metadata["n_channels"], n_freqs, syntetic_padding))
+
+
+
+
+realign_power_data[i, :, :, :win_len-syntetic_padding] = self.power_data[i, :, :, start_idx:end_idx]
+realign_power_data[i, :, :, :syntetic_padding] = syntetic_data
+padded_list.append(syntetic_padding)
+
+power[:10].shape
+
+
+
+baseline[0].shape
+fig, axs = plt.subplots(5, 5, figsize=(30, 18), sharex=True, sharey=True)
+axs = axs.flatten()
+for i in range(25):
+    syntetic_data = np.random.normal(mu1[..., None], sigma[..., None], (metadata["n_channels"], n_freqs, syntetic_padding))
+    syntetic_data2 = np.random.normal(mu2[..., None], sigma[..., None], (metadata["n_channels"], n_freqs, syntetic_padding))
+    im = axs[i].imshow(syntetic_data2[0]-syntetic_data[0], aspect='auto', cmap='jet', origin='lower')
+    plt.colorbar(im, ax=axs[i])
+    axs[i].set_title(f"mu baseline1 = {mu1.mean():.2f} - mu mean = {mu2.mean():.2f}")
+
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+len(subjects)
+
+group_selection.anatomy_data[group_selection.anatomy_data["region"] == "MCCa"].groupby("subject")
+group_selection.anatomy_data["region"].unique()
+beh.columns
+
+
+
+test /= n_included
+lim = np.max(np.abs(test))
+plt.imshow(test, aspect='auto', cmap='jet', origin='lower', vmin=-lim, vmax=lim)
+plt.axvline(int(1.5*sr_decimated), color='black', linestyle='--')
+plt.colorbar()
+plt.tight_layout()
+plt.show()
+fig.show()
+subject
+vmpfc_tfr.shape
+complete_tfr[20]
+3*sr_decimated
+
+
+del features
+gc.collect()
 
 
 
@@ -39,7 +347,8 @@ plt.imshow(geometry.X_group[(1.0, 'explor', 'random')][:, -1, :], aspect='auto',
 plt.show()
 
 
-
+sns.barplot(group_selection.anatomy_data.groupby(["subject"]).size())
+plt.show()
 
 
 
@@ -269,12 +578,12 @@ plt.show()
 
 
 
+subjects = [2]
 
 
 
 
-
-analysis = DecodingAnalysis(subjects, "transition")
+analysis = DecodingAnalysis(subjects, "hmm")
 
 analysis.load_matrix(VAR_LIST)
 
@@ -473,9 +782,6 @@ print("Cluster counts:", cluster_counts)
 
 
 
-
-
-
 subject = 2
 var = "reliability"
 
@@ -556,8 +862,16 @@ cross_decoding_matrix[t_train_idx, :] = np.arctanh(corr)
 
 
 
-group_selection = GroupLoader(subjects)
-group_selection.load_anatomy()
+
+
+
+
+
+
+
+
+
+
 group_selection.load_behavior("selection")
 
 df = group_selection.beh_data.copy()

@@ -74,19 +74,18 @@ end
 function add_before!(df)
     df.before_pres .= 0
     df.before_trial .= 0
-    df.next_stable .= fill(-1, nrow(df))    
+    df.next_stable .= fill(2, nrow(df))    
     for i in findall(df.new_block .== 1)
         if df.epis[i] <= 1
             continue
         end        
         counter_stim = zeros(Int, 3)
-        count_trial = 0        
+        count_trial = 0 
         j = i - 1
         while j >= 1 && (df.new_block[j] .!= 1)
             state = df.stim[j]
             counter_stim[state] -= 1
             count_trial -= 1
-            
             df.before_pres[j] = counter_stim[state]
             df.before_trial[j] = count_trial            
             if df.is_partial[i] == 1

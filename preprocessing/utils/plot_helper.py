@@ -13,8 +13,8 @@ from preprocessing.config import *
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.colors import ListedColormap
-import matplotlib
-matplotlib.use('Qt5Agg')
+# import matplotlib
+# matplotlib.use('Qt5Agg')
 # plt.style.use('seaborn-v0_8-poster') 
 
 
@@ -143,9 +143,9 @@ def plot_around_switch(summary_before, summary_after, x_pre, x_post, avr_line = 
         ax.axhline(avr_line, color="black", lw=2, ls="--", alpha=0.8)
     ax.axvline(0, color="red", lw=3, alpha=0.8)
     plt.tight_layout()
-    if save_path:
-        fig.savefig(save_path, transparent=True, format="pdf", bbox_inches="tight")
-        plt.close(fig)
-    else:
-        plt.show()
+    # if save_path:
+    #     fig.savefig(save_path, transparent=True, format="pdf", bbox_inches="tight")
+    #     plt.close(fig)
+    # else:
+    #     plt.show()
     return fig, ax

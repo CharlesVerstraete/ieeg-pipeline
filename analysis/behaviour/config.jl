@@ -19,7 +19,8 @@ Created:
 ##################################################
 # Path definition
 # DATA_PATH = "/home/cverstraete/nasShare/projects/cverstraete/data";
-DATA_PATH = "/Users/charles.verstraete/Documents/w3_iEEG/data_cluster"
+DATA_PATH = "/Users/charles/Documents/PhD/tmp_data";
+CHAIN_PATH = "/Users/charles/Documents/PhD/Analysis/ieeg-pipeline/analysis/behaviour/chains";
 # CHAIN_PATH = "/home/cverstraete/nasShare/projects/cverstraete/behavior/outputs/chains";
 # FIGURE_PATH = "/home/cverstraete/nasShare/projects/cverstraete/behavior/outputs/figures";
 # TABLE_PATH = "/home/cverstraete/nasShare/projects/cverstraete/behavior/outputs/tables";

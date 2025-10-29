@@ -1,5 +1,5 @@
 #-*- coding: utf-8 -*-
-#-*- python 3.9.6 -*-
+#-*- python 3.12.10 -*-
 
 # Author : Charles Verstraete
 # Date : 2025
@@ -19,19 +19,19 @@ from copy import deepcopy
 import gc
 
 # Set the path to directories
-ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
-ORIGINAL_DATA_DIR = os.path.join(ORIGINAL_DIR, "subject_collection")
+# ORIGINAL_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/"
+# ORIGINAL_DATA_DIR = os.path.join(ORIGINAL_DIR, "subject_collection")
 
-FIRST_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis/data")
+# FIRST_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis/data")
 
-SECOND_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis_v2/data")
+# SECOND_ANALYSIS__DATA_DIR = os.path.join(ORIGINAL_DIR, "analysis_v2/data")
 
-ROOT_DIR = os.path.join(ORIGINAL_DIR, "analysis_v3")
-DATA_DIR = os.path.join(ROOT_DIR, "data")
+ROOT_DIR = os.path.join("/Users", "charles", "Documents", "PhD")
+DATA_DIR = os.path.join(ROOT_DIR, "tmp_data")
 PREPROCESSING_DIR = os.path.join(ROOT_DIR, "preprocessing")
-FIGURES_DIR = os.path.join(ROOT_DIR, "figures")
+FIGURES_DIR = os.path.join(ROOT_DIR, "Analysis", "figures")
 
-ATLAS_DIR = "/Users/charles.verstraete/Documents/w3_iEEG/anatomical_atlas"
+ATLAS_DIR = "/Users/charles/Documents/PhD/Analysis/ieeg-pipeline/atlas" #"/Users/charles.verstraete/Documents/w3_iEEG/anatomical_atlas"
 
 # Set subjects and sessions
 N_SUBJECTS = 28
@@ -154,11 +154,13 @@ palette = sns.color_palette("Dark2")
 stable_color = palette[3]
 partial_color = palette[2]
 complete_color = palette[0]
+
+palette = sns.color_palette("tab10")
 # palette_dict = {0: partial_color, 1: stable_color, -1: complete_color, 
 #                 'random': (0.5, 0.5, 0.5), 'global': complete_color, 'overlap': partial_color}
 
-palette_dict = {0: partial_color, 1: stable_color, -1: complete_color, 
-                'random': (0.5, 0.5, 0.5), 'global': (0.835, 0.369, 0.000), 'overlap': (0.337, 0.706, 0.914)}
+palette_dict = {0: partial_color, 1: stable_color, 2: complete_color, 
+                'random': palette[2], 'global': palette[1], 'overlap': palette[0]}
 
 
 stim_ids = [10, 20, 30, 11, 21, 31, 12, 22, 32]

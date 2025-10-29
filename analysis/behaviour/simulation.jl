@@ -16,9 +16,16 @@ include("librairy.jl")
 
 ns, na = 3, 3
 sub_list = [2, 3, 4, 5, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 28, 29]
-DATA_PATH = "/Users/charles.verstraete/Documents/w3_iEEG/behaviour"
+
+# DATA_PATH = "/Users/charles/Documents/PhD/"
 subject = sub_list[1]
 f_sub = @sprintf("%03d", subject)
+
+chain_file = string(CHAIN_PATH, "/HMM", "/sub-$(f_sub)_chains.jls")
+chain_file
+chain = deserialize(chain_file)
+println("Subject: ", subject, " - ", size(chain), "\n")
+
 
 # model_type = "transition"
 all_sub_df_simu = DataFrame()
@@ -61,45 +68,67 @@ for subject in sub_list
 end
 
 
-
+all_sub_df = test_full
 
 plot(all_sub_df.rt_zscore)
 
-
-
+all_sub_df_simu[ismissing.(all_sub_df_simu.is_stimstable), :is_stimstable] .= 2
+all_sub_df
 all_sub_df[all_sub_df.persev_hmm .== 1, end-40:end]
+all_sub_df_simu
+test_first_random = all_sub_df[(all_sub_df.firstsw_trial .!= 0) .& (all_sub_df.randomsw_trial .!= 0), :]
 
 
-
-
-test = combine(groupby(all_sub_df, [:firstsw_trial, :firstsw_type]), :correct => mean => :mean)
+test = combine(groupby(test_first_random, [:firstsw_trial, :is_stimstable]), :correct => mean => :mean)
 test_pos = test[test.firstsw_trial .> 0, :]
 test_pos = test_pos[test_pos.firstsw_trial .< 10, :]
 test_neg = test[test.firstsw_trial .< 0, :]
 test_neg = test_neg[test_neg.firstsw_trial .> -10, :]
-@df test_neg plot(:firstsw_trial, :mean, group = :firstsw_type, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
-@df test_pos plot!(:firstsw_trial, :mean, group = :firstsw_type, linewidth = 2, palette = :Dark2_3)
+@df test_neg plot(:firstsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
+@df test_pos plot!(:firstsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3)
 
 
-test = combine(groupby(all_sub_df, [:goodsw_trial, :goodsw_type]), :correct => mean => :mean)
+test = combine(groupby(all_sub_df, [:goodsw_trial, :is_stimstable]), :persev_hmm => mean => :mean)
 test_pos = test[test.goodsw_trial .> 0, :]
 test_pos = test_pos[test_pos.goodsw_trial .< 10, :]
 test_neg = test[test.goodsw_trial .< 0, :]
 test_neg = test_neg[test_neg.goodsw_trial .> -10, :]
-@df test_neg plot(:goodsw_trial, :mean, group = :goodsw_type, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
-@df test_pos plot!(:goodsw_trial, :mean, group = :goodsw_type, linewidth = 2, palette = :Dark2_3)
+sort!(test_neg, :goodsw_trial)
+sort!(test_pos, :goodsw_trial)
+@df test_neg plot(:goodsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false)
+@df test_pos plot!(:goodsw_trial, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_3)
 
-test = combine(groupby(all_sub_df, [:randomsw_pres, :subject]), :correct => mean => :mean)
-test = combine(groupby(test, [:randomsw_pres]), :mean => mean => :mean, :mean => std => :std, nrow => :n)
+
+
+test = combine(groupby(test_first_random, [:firstsw_trial, :subject]), :correct => mean => :mean)
+test = combine(groupby(test, [:firstsw_trial]), :mean => mean => :mean, :mean => std => :std, nrow => :n)
 test.sem .= test.std ./ sqrt.(test.n)
-test_pos = test[test.randomsw_pres .> 0, :]
-test_pos = test_pos[test_pos.randomsw_pres .< 10, :]
-test_neg = test[test.randomsw_pres .< 0, :]
-test_neg = test_neg[test_neg.randomsw_pres .> -10, :]
-@df test_neg plot(:randomsw_pres, :mean, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false, ribbons = :sem)
-@df test_pos plot!(:randomsw_pres, :mean, linewidth = 2, palette = :Dark2_3, ribbons = :sem)
+test_pos = test[test.firstsw_trial .> 0, :]
+test_pos = test_pos[test_pos.firstsw_trial .< 20, :]
+test_neg = test[test.firstsw_trial .< 0, :]
+test_neg = test_neg[test_neg.firstsw_trial .> -10, :]
+@df test_neg plot(:firstsw_trial, :mean, linewidth = 2, palette = :Dark2_3, ylims = (0, 1), label = false, ribbons = :sem)
+@df test_pos plot!(:firstsw_trial, :mean, linewidth = 2, palette = :Dark2_3, ribbons = :sem)
+hline!([0.33], linestyle = :dash, color = :black, label = "random switch")
 
 
+test_pos = combine(groupby(all_sub_df_simu, [:trial, :subject, :is_stimstable]), :correct => mean => :mean)
+test_pos = combine(groupby(test_pos, [:trial, :is_stimstable]), :mean => mean => :mean, :mean => std => :std, nrow => :n)
+test_pos.sem .= test_pos.std ./ sqrt.(test_pos.n)
+test_pos = test[test.stim_pres .> 0, :]
+test_pos = test_pos[test_pos.stim_pres .< 30, :]
+@df test_pos plot(:stim_pres, :mean, group = :is_stimstable, linewidth = 2, palette = :Dark2_4, ylims = (0, 1), label = false, ribbons = :sem)
+# hline!([0.33], linestyle = :dash, color = :black, label = "random switch")
+
+
+test_neg = combine(groupby(all_sub_df_simu, [:before_trial, :subject, :next_stable]), :correct => mean => :mean)
+test_neg = combine(groupby(test_neg, [:before_trial, :next_stable]), :mean => mean => :mean, :mean => std => :std, nrow => :n)
+test_neg.sem .= test_neg.std ./ sqrt.(test_neg.n)
+test_neg = test_neg[test_neg.before_trial .< 0, :]
+test_neg = test_neg[test_neg.before_trial .> -10, :]
+@df test_neg plot!(:before_trial, :mean, group = :next_stable, linewidth = 2, palette = :Dark2_4, ribbons = :sem)
+
+test_neg
 
 
 

@@ -1,25 +1,28 @@
-function add_switch!(df::DataFrame, subject::Int = 0, save_path::String = "")
-    # Load and process latent states
-    if subject > 0
-        strat_map = load_latent_states(save_path, subject)
-        df.hmm_strat .= mode.(eachrow(strat_map))
-    end
-    initialize_switch_columns!(df)
-    
-    # # Process each episode
-    # for episode_df in groupby(df, :epis)
-    #     process_episode!(episode_df)
-    # end
-
-    # Label switch types
-    # label_switch_types!(df)
+function add_switch!(df::DataFrame, subject::Int, save_path::String)
+    strat_map = load_latent_states(save_path, subject)
+    chn = load_chains(save_path, subject)
+    w = get_llh_weight(chn)
+    df.hmm_strat .= mode.(eachrow(strat_map))
+    process_switch!(df)
     return df
 end
 
 function load_latent_states(save_path, subject::Int)
-    latent_file = string(save_path, "sub-$(@sprintf("%03d", subject))_latent.jld2")
+    latent_file = joinpath(save_path, "sub-$(@sprintf("%03d", subject))_latent.jld2")
     latent = load(latent_file)["latent"]
     return hcat(latent...)
+end
+
+function load_chains(save_path, subject::Int)
+    chain_file = joinpath(save_path, "sub-$(@sprintf("%03d", subject))_chains.jls")
+    return deserialize(chain_file)
+end
+
+function get_llh_weight(chn)
+    chn_df = DataFrame(chn)
+    w = exp.(chn_df.lp .- maximum(chn_df.lp))
+    w ./= sum(w)
+    return w
 end
 
 function initialize_switch_columns!(df::DataFrame)
@@ -54,41 +57,42 @@ function initialize_switch_columns!(df::DataFrame)
     df.randomsw_type .= ""
 end
 
-function forward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choicse::Int, current_strat::Int, switch_type::String)
+function forward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choices::Vector{Int64}, current_strat::Int, switch_type::String)
     j = switch_idx
     counter_stim = zeros(Int, 3)
     trial_counter = 0
     trial_colname = string(colname, "_trial")
     pres_colname = string(colname, "_pres")
     type_colname = string(colname, "_type")
-    while (minimum(counter_stim) < 8) && (j < nrow(df)) && (df[j, :hmm_strat] == current_strat)
+    while (minimum(counter_stim) < 3) && (j < nrow(df)) && (df[j, :hmm_strat] == current_strat)
         counter_stim[df[j, :stim]] += 1
         df[j, pres_colname] = counter_stim[df[j, :stim]]
         trial_counter += 1
         df[j, trial_colname] = trial_counter
         df[j, :persev_hmm] = persev_choices[df[j, :stim]] == df[j, :choice]
-        df[j, :explor_hmm] = df[j, :choice] ∈ explor_choice
-        df[j, type_colname] = switch_type
+        explor = filter!(e -> !(e in [df[j, :persev_hmm], df[j, :correct_choice]]), [1,2,3])
+        df[j, :explor_hmm] = df[j, :choice] ∈ explor
+        df[j, type_colname] = df[j, type_colname] == "" ? switch_type : df[j, type_colname]
         j += 1
     end
 end
 
-function backward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choices::Int, prev_strat::Int, switch_type::String)
+function backward_counters!(df::DataFrame, switch_idx::Int, colname::String, persev_choices::Vector{Int64}, prev_strat::Int, switch_type::String)
     i = switch_idx - 1
     counter_stim = zeros(Int, 3)
     trial_counter = 0
     trial_colname = string(colname, "_trial")
     pres_colname = string(colname, "_pres")
     type_colname = string(colname, "_type")
-    while (abs(minimum(counter_stim)) < 8) && (i > 0) && (df[i, :hmm_strat] == prev_strat)
+    while (abs(minimum(counter_stim)) < 3) && (i > 0) && (df[i, :hmm_strat] == prev_strat)
         counter_stim[df[i, :stim]] -= 1
         df[i, pres_colname] = counter_stim[df[i, :stim]]
         trial_counter += 1
         df[i, trial_colname] = -trial_counter
         df[i, :persev_hmm] = persev_choices[df[i, :stim]] == df[i, :choice]
-        explor = [(filter!(e -> !(e in [a,b]), [1,2,3])) for (a,b) in zip(df.persev_choice,  df.correct_choice)]
-        df[i, :explor_hmm] = df[i, :choice] ∈ explor_choice
-        df[i, type_colname] = switch_type
+        explor = filter!(e -> !(e in [df[i, :persev_hmm], df[i, :correct_choice]]), [1,2,3])
+        df[i, :explor_hmm] = df[i, :choice] ∈ explor
+        df[i, type_colname] = df[i, type_colname] == "" ? switch_type : df[i, type_colname]
         i -= 1
     end
 end
@@ -113,8 +117,9 @@ function process_switch!(df::DataFrame)
     goodsw = false
     switch_counters = 0
     active_rule = Array(df[:, 1:3])
+    persev_choices = zeros(Int, 3)
     for idx in 2:nrow(df)
-        if df.trial[idx] == 1
+        if (df.trial[idx] == 1) || (df.new_block[idx] == 1)
             switch_counters = 0
             firstsw = false
             goodsw = false
@@ -156,7 +161,6 @@ end
 
 
 
-a
 
 
 
@@ -171,69 +175,3 @@ a
 
 
 
-
-
-
-# function process_episode!(episode_df::SubDataFrame)
-#     # Find first switch
-#     switch_idx = find_first_switch(episode_df)
-    
-#     # If switch found, process pre/post switch trials
-#     if switch_idx < nrow(episode_df)
-#         episode_df[switch_idx, :time2switch] = switch_idx
-#         episode_df[switch_idx, :firstswitch] = 1
-#         update_switch_counters!(episode_df)
-#     end
-# end
-
-# function find_first_switch(df::SubDataFrame)
-#     idx = 1
-#     while (idx < nrow(df)) && (df[idx, :hmm_switch] != 1)
-#         idx += 1
-#     end
-#     return idx
-# end
-
-# function update_switch_counters!(df::SubDataFrame)
-#     for t in 1:nrow(df)
-#         if df[t, :firstswitch] == 1
-#             update_pre_switch_counts!(df, t)
-#             update_post_switch_counts!(df, t)
-#         end
-#     end
-# end
-
-
-# function update_post_switch_counts!(df::SubDataFrame, switch_idx::Int)
-#     counter = zeros(Int, 3)
-#     j = switch_idx + 1
-#     while minimum(counter) < MIN_OBSERVATIONS && (j < nrow(df))
-#         counter[df[j, :stim]] += 1
-#         df[j, :post_hmmsw_pres] = counter[df[j, :stim]]
-#         j += 1
-#     end
-# end
-
-# function label_switch_types!(df::DataFrame)
-#     switch_type = ""
-#     random_type = ""
-#     for t in 2:nrow(df)
-#         if df[t, :firstswitch] == 1
-#             switch_type = SWITCH_TYPES[HTRANS[df.hmm_strat[t-1], df.hmm_strat[t]]]
-#             random_type = get_random_type(df.hmm_strat[t-1], df.hmm_strat[t])
-#         end
-#         df.switch_type[t] = switch_type
-#         df.random_type[t] = random_type
-#     end
-# end
-
-# function get_random_type(prev_state::Int, curr_state::Int)::String
-#     if curr_state == RANDOM_STATE
-#         out =  "to_random"
-#     elseif prev_state == RANDOM_STATE
-#         out = "from_random"
-#     else
-#         out = ""
-#     end
-#     return out
-# end

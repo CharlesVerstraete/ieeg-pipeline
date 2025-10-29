@@ -39,6 +39,7 @@ include("config.jl");
 include("utils/model_helper.jl");
 include("utils/data_helper.jl");
 include("utils/simulation_helper.jl");
+include("utils/hmm_helper.jl");
 
 ## Load models
 include("model/stratinf_selection_greedy.jl")
